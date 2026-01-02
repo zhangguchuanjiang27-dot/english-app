@@ -1,5 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
+import hmac # パスワードを安全に比較するための道具
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
@@ -8,14 +9,61 @@ import io
 import os
 import datetime
 
-# ==========================================
-# 👇 ここにあなたのAPIキーを貼り付けてください
-API_KEY = "AIzaSyBCFa_edizOfgLjeRa8LnhRl_RtT8P339s" 
-# ==========================================
+# --- 0. ログイン機能の関数 ---
+def check_password():
+    """IDとパスワードによるログイン認証"""
+    
+    # すでにログイン済みならOKを返す
+    if st.session_state.get('password_correct', False):
+        return True
+
+    # --- ログイン画面の表示 ---
+    st.title("🔒 先生用ログイン")
+    st.caption("管理者から配布されたIDとパスワードを入力してください。")
+    
+    # フォームを使ってEnterキーでログインできるようにする
+    with st.form("login_form"):
+        user_id = st.text_input("ユーザーID")
+        password = st.text_input("パスワード", type="password")
+        submit_button = st.form_submit_button("ログイン")
+
+        if submit_button:
+            # Secretsに「passwords」という設定があるか確認
+            if "passwords" not in st.secrets:
+                st.error("設定エラー: Secretsにユーザー情報が登録されていません。")
+                return False
+            
+            # IDが存在し、かつパスワードが一致するか確認
+            if user_id in st.secrets["passwords"] and \
+               hmac.compare_digest(password, st.secrets["passwords"][user_id]):
+                
+                st.session_state['password_correct'] = True
+                st.session_state['user_id'] = user_id # 誰が入ったか記録
+                st.rerun() # 画面を再読み込みしてアプリへ
+                
+            else:
+                st.error("IDまたはパスワードが間違っています。")
+
+    return False
+
+# --- メイン処理の前にロックをかける ---
+if not check_password():
+    st.stop() # ログインしていない場合はここでプログラムを強制停止！
+
+# ========================================================
+# 🔓 ここから下は、ログイン成功者だけが見られる世界
+# ========================================================
+
+# --- APIキーの取得（Secretsから安全に取得） ---
+try:
+    API_KEY = st.secrets["GOOGLE_API_KEY"]
+except:
+    st.error("APIキーが設定されていません。Streamlit CloudのSecretsを設定してください。")
+    st.stop()
 
 # --- 初期設定 ---
 if len(API_KEY) < 30:
-    st.error("APIキーが正しく設定されていません。コードを確認してください。")
+    st.error("APIキーが無効です。")
 else:
     genai.configure(api_key=API_KEY)
 
@@ -24,6 +72,16 @@ if 'history' not in st.session_state:
     st.session_state.history = []
 if 'current_data' not in st.session_state:
     st.session_state.current_data = None
+
+# --- サイドバー：ログアウト機能とユーザー表示 ---
+st.sidebar.success(f"ログイン中: {st.session_state['user_id']} 先生")
+if st.sidebar.button("ログアウト"):
+    st.session_state['password_correct'] = False
+    st.session_state['user_id'] = None
+    st.rerun()
+st.sidebar.divider()
+
+# --- (以下、いつものアプリ機能) ---
 
 # --- 1. PDFを作る関数 ---
 def create_pdf(problem_text):
@@ -63,8 +121,8 @@ def create_pdf(problem_text):
     return buffer
 
 # --- 2. 画面レイアウト ---
-st.title("🇬🇧 英語問題メーカー (Multi-Mode)")
-st.caption("4択・和訳・英訳・長文読解の4つのモードに対応しました。")
+st.title("🇬🇧 英語問題メーカー")
+st.caption("AIを活用した英語教材作成ツール")
 
 # サイドバー設定
 with st.sidebar:
@@ -79,10 +137,8 @@ with st.sidebar:
     ]
     
     grammar_topic = st.selectbox("ターゲット文法", grammar_list)
-    
     st.divider()
     
-    # ★ここを拡張しました
     problem_type = st.radio(
         "問題形式を選択",
         [
@@ -98,12 +154,10 @@ with st.sidebar:
 
     st.divider()
     
-    # 履歴表示エリア
     st.header("📚 作成履歴")
     if len(st.session_state.history) > 0:
         for i, item in enumerate(reversed(st.session_state.history)):
-            # 履歴ラベルに「形式」も表示するように変更
-            type_label = item['type'][:2] # 絵文字だけ取る
+            type_label = item['type'][:2] 
             label = f"{type_label} {item['time']} - {item['topic']}"
             if st.button(label, key=f"hist_{i}"):
                 st.session_state.current_data = item
@@ -121,60 +175,39 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             model = genai.GenerativeModel('models/gemini-2.5-flash')
             separator_mark = "|||SPLIT|||"
             
-            # --- プロンプトの切り替えロジック ---
             if problem_type == "🔠 4択問題 (Grammar)":
-                instruction = f"""
-                ターゲット文法「{grammar_topic}」に関する**4択穴埋め問題**を作成してください。
-                選択肢は (A) (B) (C) (D) の形式にしてください。
-                """
+                instruction = f"ターゲット文法「{grammar_topic}」に関する**4択穴埋め問題**を作成してください。選択肢は (A) (B) (C) (D)。"
             elif problem_type == "🇯🇵 和訳問題 (Eng → Jap)":
-                instruction = f"""
-                ターゲット文法「{grammar_topic}」を使った**英語の短文**を提示し、
-                それを日本語に訳させる問題を作成してください。
-                問題用紙には英語の文だけを書き、解答用紙に模範和訳を書いてください。
-                """
+                instruction = f"ターゲット文法「{grammar_topic}」を使った**英語の短文**を提示し、日本語訳させる問題を作成してください。"
             elif problem_type == "🇺🇸 英訳問題 (Jap → Eng)":
-                instruction = f"""
-                ターゲット文法「{grammar_topic}」を使った文を作るための**日本語の短文**を提示し、
-                それを英語に訳させる問題を作成してください。
-                整序問題（並び替え）ではなく、記述式（Writing）にしてください。
-                """
-            else: # 長文読解
-                instruction = f"""
-                ターゲット文法「{grammar_topic}」を多用した**英語の長文ストーリー**を作成し、
-                その内容に関する読解問題（内容一致や理由説明など）を作成してください。
-                """
+                instruction = f"ターゲット文法「{grammar_topic}」を使った文を作るための**日本語の短文**を提示し、英語訳させる問題を作成してください。"
+            else: 
+                instruction = f"ターゲット文法「{grammar_topic}」を多用した**英語の長文ストーリー**を作成し、読解問題を作成してください。"
 
-            # 共通プロンプト
             prompt = f"""
             あなたは日本の中学校英語教師です。以下の条件でテストを作成してください。
-            
-            【条件】
-            - 対象レベル: {level}
-            - 問題数: {q_num}問
-            - 指示: {instruction}
-            - 禁止事項: マークダウン記号（**や##）は絶対に使用しないこと。
+            条件: レベル[{level}] 問題数[{q_num}]
+            指示: {instruction}
+            禁止: マークダウン記号(**など)
             
             【出力フォーマット】
-            必ず以下の構成にし、問題と解答の間に「{separator_mark}」を入れてください。
+            必ず問題と解答の間に「{separator_mark}」を入れてください。
             
             タイトル: {grammar_topic} 確認テスト ({problem_type})
             名前: ____________________
             
-            (ここに生徒用の問題を記述)
-            (記述スペースが必要な場合は ______________ のように下線を引いてください)
+            (問題文)
             
             {separator_mark}
             
             【解答・解説】
-            (ここに解答と、なぜそうなるかの解説を記述)
+            (解答文)
             """
             
             response = model.generate_content(prompt)
             generated_text = response.text
             generated_text = generated_text.replace("**", "").replace("##", "").replace("__", "")
             
-            # 分割処理
             if separator_mark in generated_text:
                 parts = generated_text.split(separator_mark)
                 q_text = parts[0].strip()
@@ -183,11 +216,10 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 q_text = generated_text
                 a_text = "分割失敗"
 
-            # 履歴に保存するデータ
             new_data = {
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "topic": grammar_topic,
-                "type": problem_type, # 形式も保存
+                "type": problem_type,
                 "q_text": q_text,
                 "a_text": a_text
             }
@@ -217,16 +249,6 @@ if st.session_state.current_data is not None:
     
     col1, col2 = st.columns(2)
     with col1:
-        st.download_button(
-            label="⬇️ 問題PDF",
-            data=pdf_q,
-            file_name="question.pdf",
-            mime="application/pdf"
-        )
+        st.download_button("⬇️ 問題PDF", pdf_q, file_name="question.pdf", mime="application/pdf")
     with col2:
-        st.download_button(
-            label="⬇️ 解答PDF",
-            data=pdf_a,
-            file_name="answer.pdf",
-            mime="application/pdf"
-        )
+        st.download_button("⬇️ 解答PDF", pdf_a, file_name="answer.pdf", mime="application/pdf")
