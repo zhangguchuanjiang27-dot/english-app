@@ -172,7 +172,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
 
     try:
         with st.spinner(f"AIが『{problem_type}』を作成中..."):
-            model = genai.GenerativeModel('models/gemini-2.5-flash')
+            model = genai.GenerativeModel('models/gemini-2.0-flash')
             separator_mark = "|||SPLIT|||"
             
             if problem_type == "🔠 4択問題 (Grammar)":
