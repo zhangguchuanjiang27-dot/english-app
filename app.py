@@ -14,7 +14,7 @@ def check_password():
     if st.session_state.get('password_correct', False):
         return True
 
-    st.title("🔒 先生用ログイン (OpenAI版)")
+    st.title("🔒 先生用ログイン")
     st.caption("管理者から配布されたIDとパスワードを入力してください。")
     
     with st.form("login_form"):
@@ -102,7 +102,7 @@ def create_pdf(problem_text):
     return buffer
 
 # --- 画面レイアウト ---
-st.title("🇬🇧 英語問題メーカー (Mix Mode)")
+st.title("英語問題メーカー")
 st.caption("複数の文法項目を自由に組み合わせて出題できます。")
 
 with st.sidebar:
