@@ -93,23 +93,22 @@ def create_pdf(problem_text):
     buffer.seek(0)
     return buffer
 
-# --- ★音声生成関数 (New!) ---
+# --- 音声生成関数 ---
 def generate_speech(text):
     try:
         response = client.audio.speech.create(
-            model="tts-1",    # コスパ最強モデル
-            voice="alloy",    # 聞き取りやすい中性的な声
+            model="tts-1",
+            voice="alloy",
             input=text
         )
-        # バイナリデータとして返す
         return io.BytesIO(response.content)
     except Exception as e:
         st.error(f"音声生成エラー: {e}")
         return None
 
 # --- 画面レイアウト ---
-st.title("🇬🇧 英語問題メーカー (Audio対応版)")
-st.caption("リスニング問題の音声生成に対応しました。")
+st.title("🇬🇧 英語問題メーカー (Pro)")
+st.caption("リスニングは4択形式で作成されます。")
 
 with st.sidebar:
     st.header("⚙️ 問題の設定")
@@ -129,7 +128,6 @@ with st.sidebar:
     
     st.divider()
     
-    # ★「リスニング問題」を追加！
     problem_type = st.radio("問題形式を選択", [
         "🎧 リスニング問題 (Listening)",
         "🔠 4択問題 (Grammar)",
@@ -173,9 +171,8 @@ if st.button("✨ 問題を作成する", use_container_width=True):
         
         with st.spinner(f"AIが『{problem_type}』を作成中..."):
             
-            # --- プロンプトの準備 ---
-            separator_mark = "|||SPLIT|||"      # 問題と解答の区切り
-            script_mark = "|||SCRIPT_END|||"   # 放送文の終わり（リスニング用）
+            separator_mark = "|||SPLIT|||"
+            script_mark = "|||SCRIPT_END|||"
             
             if len(selected_grammars) == 1:
                 mix_instruction = f"ターゲット文法「{grammar_topic_str}」を集中的に使用してください。"
@@ -184,14 +181,16 @@ if st.button("✨ 問題を作成する", use_container_width=True):
 
             # 形式ごとの指示
             if problem_type == "🎧 リスニング問題 (Listening)":
+                # ★ここを変更: 4択形式を指定
                 instruction = f"""
-                ターゲット文法「{grammar_topic_str}」を使った**リスニングテスト**を作成してください。
+                ターゲット文法「{grammar_topic_str}」を使った**4択形式のリスニングテスト**を作成してください。
                 
                 【重要：構成について】
                 1. まず、読み上げられる**「英語の放送文（Script）」**を作成してください。対話形式または物語形式。
-                2. 次に、その内容に関する**「質問（Questions）」**を作成してください。
+                2. 次に、その内容に関する**「4択形式の質問（Questions）」**を作成してください。
+                   - 各設問に (A) (B) (C) (D) の選択肢をつけること。
                 3. 出力順序は必ず以下のようにしてください：
-                   [放送文] -> {script_mark} -> [問題用紙(質問のみ)] -> {separator_mark} -> [解答(スクリプト・和訳・答え)]
+                   [放送文] -> {script_mark} -> [問題用紙(4択質問のみ)] -> {separator_mark} -> [解答(スクリプト・和訳・答え)]
                 """
             elif problem_type == "🔠 4択問題 (Grammar)":
                 instruction = f"文法「{grammar_topic_str}」の**4択穴埋め問題**。(A)(B)(C)(D)形式。指示: {mix_instruction}"
@@ -232,32 +231,23 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             audio_data = None
             script_text = ""
             
-            # リスニングの場合の特別処理
             if problem_type == "🎧 リスニング問題 (Listening)" and script_mark in generated_text:
                 parts = generated_text.split(script_mark)
-                script_part = parts[0].strip() # これが音声にするテキスト
-                rest_part = parts[1].strip()   # これが問題と解答
+                script_part = parts[0].strip()
+                rest_part = parts[1].strip()
                 
-                # スクリプト部分から不要な「[放送文]」などのタグを消す（読み上げないように）
                 script_text = script_part.replace("[放送文]", "").replace("Script:", "").strip()
-                
-                # 音声生成を実行
                 audio_data = generate_speech(script_text)
                 
-                # テキスト全体の整合性を整える（PDF作成用）
-                # 問題用紙にはスクリプトを載せないため、rest_part を使う
                 if separator_mark in rest_part:
                     q_a_parts = rest_part.split(separator_mark)
-                    q_text = q_a_parts[0].strip() # 問題用紙
-                    
-                    # 解答用紙にはスクリプトも載せてあげたいので、結合する
+                    q_text = q_a_parts[0].strip()
                     a_text = f"【放送文(Script)】\n\n{script_text}\n\n----------------\n\n" + q_a_parts[1].strip()
                 else:
                     q_text = rest_part
                     a_text = "分割失敗"
                     
             else:
-                # 通常の問題作成フロー
                 if separator_mark in generated_text:
                     parts = generated_text.split(separator_mark)
                     q_text = parts[0].strip()
@@ -266,14 +256,13 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                     q_text = generated_text
                     a_text = "分割失敗"
 
-            # データを保存
             new_data = {
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
                 "topic": grammar_topic_str,
                 "type": problem_type,
                 "q_text": q_text,
                 "a_text": a_text,
-                "audio": audio_data, # 音声データも保存
+                "audio": audio_data,
                 "script": script_text
             }
             
@@ -291,19 +280,16 @@ if st.session_state.current_data is not None:
     st.divider()
     st.subheader(f"📄 結果 ({data['type']})")
     
-    # ★リスニング音声プレイヤーの表示
     if data['type'] == "🎧 リスニング問題 (Listening)" and data['audio'] is not None:
         st.info("🎧 生成された音声を確認できます")
         st.audio(data['audio'], format="audio/mp3")
         
-        # 音声ダウンロードボタン
         st.download_button(
             label="⬇️ 音声(MP3)をダウンロード",
             data=data['audio'],
             file_name=f"listening_audio.mp3",
             mime="audio/mpeg"
         )
-        
         with st.expander("放送文（スクリプト）を見る"):
             st.write(data['script'])
     
