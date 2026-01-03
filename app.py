@@ -128,7 +128,10 @@ with st.sidebar:
         "🇺🇸 英訳問題 (Jap → Eng)",
         "📖 長文読解 (Reading)"
     ])
-    level = st.selectbox("レベル目安", ["中学1年基礎", "中学1年応用", "中学2年基礎", "中学2年応用", "中学3年受験"])
+    
+    # ★変更点: レベル選択を3つにシンプル化
+    level = st.selectbox("学年レベル", ["中学1年生", "中学2年生", "中学3年生"])
+    
     q_num = st.slider("問題数", 1, 10, 5)
     st.divider()
     
@@ -164,22 +167,26 @@ if st.button("✨ 問題を作成する", use_container_width=True):
         with st.spinner(f"AIが『{grammar_topic_str}』の問題を作成中..."):
             separator_mark = "|||SPLIT|||"
             
-            # ★レベルごとの単語制限ルール（ここが重要！）
+            # ★レベルごとの単語制限ルール（学年別に整理）
             vocab_limit_instruction = ""
-            if "中学1年" in level:
+            if level == "中学1年生":
                 vocab_limit_instruction = """
                 【超重要：単語レベル制限】
-                - 日本の中学1年生の教科書(New Horizon Book 1など)に出てくる**超基本的な単語のみ**を使用すること。
+                - 中学1年生の教科書(New Horizon Book 1など)に出てくる**超基本的な英単語のみ**を使用すること。
+                - 難しい動詞(decide, experience, realizedなど)や副詞は絶対に使用禁止。
+                - 基本動詞(go, come, eat, have, like, play, study, watch)と、身近な名詞(family, school, friend, food, sport)だけで構成すること。
                 """
-            elif "中学2年" in level:
+            elif level == "中学2年生":
                 vocab_limit_instruction = """
                 【単語レベル制限】
-                - 日本の中学2年生レベル(英検4級〜3級)の単語を使用すること。
+                - 中学2年生レベル(英検4級〜3級)の英単語を使用すること。
+                - 不定詞、動名詞、比較級、過去形などは使用してよいが、高校レベルの難解な単語は避けること。
                 """
-            else: # 中学3年
+            else: # 中学3年生
                 vocab_limit_instruction = """
                 【単語レベル制限】
-                - 日本の高校入試レベル(英検3級〜準2級)の単語を使用すること。
+                - 中学3年生・高校入試レベル(英検3級〜準2級)の英単語を使用すること。
+                - 関係代名詞や受動態を含む表現を使用してもよい。
                 """
 
             if len(selected_grammars) == 1:
@@ -219,17 +226,19 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 [解答]の側に、対応する英語の正解文を記述すること。
                 """
             else: # 長文読解
+                # ★ここを修正：英語での出力を強制
                 instruction = f"""
                 以下の構成で長文読解テストを作成してください。
                 
-                1. **本文**: 文法「{grammar_topic_str}」を多用した英語の長文ストーリーを作成する。
-                   - 【最重要】: {vocab_limit_instruction}
+                1. **本文(Passage)**: 文法「{grammar_topic_str}」を多用した**英語の長文ストーリー(Story in English)**を作成する。
+                   - 【絶対ルール】本文は必ず**英語(English)**で書くこと。日本語で書いてはいけません。
+                   - 単語レベル: {vocab_limit_instruction}
                 
-                2. **設問**: ストーリーの内容に関する**4択問題(A)(B)(C)(D)をちょうど4問**作成する。
+                2. **設問(Questions)**: ストーリーの内容に関する**4択問題(A)(B)(C)(D)をちょうど4問**作成する。
                    - 質問には必ず "Q.1", "Q.2", "Q.3", "Q.4" と番号を振ること。
                 
                 3. **出力ルール**:
-                   - [問題用紙]側: ストーリー本文と、4つの設問(選択肢含む)のみを記述。
+                   - [問題用紙]側: 英語のストーリー本文と、4つの設問(選択肢含む)のみを記述。
                    - [解答]側: **冒頭に必ずストーリーの全文和訳を記述する**こと。その後に、設問の正解と解説を記述すること。
                 
                 指示: {mix_instruction}
