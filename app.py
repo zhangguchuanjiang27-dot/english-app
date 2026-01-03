@@ -8,7 +8,6 @@ from reportlab.pdfbase.ttfonts import TTFont
 import io
 import os
 import datetime
-import time
 
 # --- 0. ログイン機能 ---
 def check_password():
@@ -54,9 +53,7 @@ except:
 # --- OpenAIクライアント ---
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# --- セッションステート初期化 ---
-if 'history' not in st.session_state:
-    st.session_state.history = []
+# --- セッションステート (履歴機能は削除し、現在のデータのみ保持) ---
 if 'current_data' not in st.session_state:
     st.session_state.current_data = None
 
@@ -97,14 +94,18 @@ def create_pdf(problem_text):
 # --- 音声生成関数 ---
 def generate_speech(text):
     try:
-        # ポーズ（間）を作るためのハック
-        # [PAUSE] をピリオドとスペースの連続に置換して、AIに「溜め」を作らせる
+        # ポーズ（間）を作るための調整
         formatted_text = text.replace("[PAUSE]", " ... ... ... ") 
+        
+        # 万が一「Title:」などが残っていたら削除する念入りな処理
+        lines = formatted_text.split('\n')
+        clean_lines = [line for line in lines if not line.strip().lower().startswith("title")]
+        clean_text = "\n".join(clean_lines)
 
         response = client.audio.speech.create(
             model="tts-1",
-            voice="alloy", # 聞き取りやすい標準的なナレーターの声
-            input=formatted_text
+            voice="alloy",
+            input=clean_text
         )
         return io.BytesIO(response.content)
     except Exception as e:
@@ -112,8 +113,8 @@ def generate_speech(text):
         return None
 
 # --- 画面レイアウト ---
-st.title("🇬🇧 英語問題メーカー (Pro)")
-st.caption("リスニングは「物語形式（Monologue）」で作成されます。")
+st.title("🇬🇧 英語問題メーカー (Simple)")
+st.caption("必要な機能だけに絞ったシンプル版です。")
 
 with st.sidebar:
     st.header("⚙️ 問題の設定")
@@ -141,28 +142,10 @@ with st.sidebar:
         "📖 長文読解 (Reading)"
     ])
     
-    # ※会話・物語の選択肢を削除しました
-    
     level = st.selectbox("レベル目安", ["中学1年基礎", "中学1年応用", "中学2年基礎", "中学2年応用", "中学3年受験"])
     q_num = st.slider("問題数", 1, 10, 5)
-    st.divider()
-    
-    st.header("📚 作成履歴")
-    if len(st.session_state.history) > 0:
-        for i, item in enumerate(reversed(st.session_state.history)):
-            type_label = item['type'][:2] 
-            topics = item['topic'].split("、")
-            if len(topics) > 1:
-                topic_label = f"{topics[0]} 他{len(topics)-1}件"
-            else:
-                topic_label = topics[0]
-            
-            label = f"{type_label} {item['time']} - {topic_label}"
-            if st.button(label, key=f"hist_{i}"):
-                st.session_state.current_data = item
-                st.rerun()
-    else:
-        st.info("履歴なし")
+
+    # 履歴欄は削除しました
 
 # --- メイン処理 ---
 if st.button("✨ 問題を作成する", use_container_width=True):
@@ -188,49 +171,60 @@ if st.button("✨ 問題を作成する", use_container_width=True):
 
             # 形式ごとの指示
             if problem_type == "🎧 リスニング問題 (Listening)":
-                # ★物語形式（Story/Monologue）に固定
                 instruction = f"""
                 ターゲット文法「{grammar_topic_str}」を使った**リスニングテスト（物語形式）**を作成してください。
                 
-                【重要：構成と音声読み上げのルール】
-                1. **[放送文(Script)]**: 
-                   - 一人のナレーターが語る**「物語 (Story)」**を書いてください。日本語は不可です。
-                   - 物語の直後に、**"Question 1: ...", "Question 2: ..." と質問文を続けて記述**してください。
-                   - 質問と質問の間には、生徒が考える時間を取るため **`[PAUSE]`** という文字を入れてください。
-                   - 形式例:
-                     (English Story Text...)
-                     [PAUSE]
-                     Question 1. (Question text...)
-                     [PAUSE]
-                     Question 2. (Question text...)
+                【超重要：構成ルール】
+                AIは以下の順番でテキストを出力すること。**冒頭にタイトルや挨拶を一切書かないこと。**
                 
-                2. **[問題用紙(Student Sheet)]**: 
-                   - ここには質問文を書かず、(A) (B) (C) (D) の選択肢のみを記述してください。
+                1. **[放送文パート]**:
+                   - いきなり英語の物語(Story)から書き始めること。
+                   - 物語の直後に "Question 1: ...", "Question 2: ..." と質問文を続けること。
+                   - 質問の間には `[PAUSE]` を入れること。
+                   - 日本語訳や注釈は一切含めないこと（英語のみ）。
                 
-                3. 出力順序:
-                   [放送文(英語のみ)] -> {script_mark} -> [問題用紙(選択肢のみ)] -> {separator_mark} -> [解答]
+                2. **{script_mark}** (この区切り文字を入れる)
+                
+                3. **[生徒用問題用紙パート]**:
+                   - 質問文は書かず、**4つの選択肢 (A)(B)(C)(D) のみを記述**すること。
+                   - タイトル: {grammar_topic_str} 確認テスト
+                   - 名前欄: ______________
+                
+                4. **{separator_mark}** (この区切り文字を入れる)
+                
+                5. **[解答パート]**:
+                   - 解答と解説、放送文のスクリプト（和訳付き）を記述。
                 """
             elif problem_type == "🔠 4択問題 (Grammar)":
-                instruction = f"文法「{grammar_topic_str}」の**4択穴埋め問題**。(A)(B)(C)(D)形式。指示: {mix_instruction}"
+                instruction = f"""
+                文法「{grammar_topic_str}」の**4択穴埋め問題**。(A)(B)(C)(D)形式。指示: {mix_instruction}
+                構成: [問題用紙] -> {separator_mark} -> [解答]
+                問題用紙の冒頭にタイトルと名前欄をつけること。
+                """
             elif problem_type == "🇯🇵 和訳問題 (Eng → Jap)":
-                instruction = f"文法「{grammar_topic_str}」を使った**英語短文**とその和訳問題。指示: {mix_instruction}"
+                instruction = f"""
+                文法「{grammar_topic_str}」を使った**英語短文**とその和訳問題。指示: {mix_instruction}
+                構成: [問題用紙] -> {separator_mark} -> [解答]
+                問題用紙の冒頭にタイトルと名前欄をつけること。
+                """
             elif problem_type == "🇺🇸 英訳問題 (Jap → Eng)":
-                instruction = f"文法「{grammar_topic_str}」を使った**日本語短文**とその英訳問題。指示: {mix_instruction}"
+                instruction = f"""
+                文法「{grammar_topic_str}」を使った**日本語短文**とその英訳問題。指示: {mix_instruction}
+                構成: [問題用紙] -> {separator_mark} -> [解答]
+                問題用紙の冒頭にタイトルと名前欄をつけること。
+                """
             else:
-                instruction = f"文法「{grammar_topic_str}」を使った**英語長文**とその読解問題。指示: {mix_instruction}"
+                instruction = f"""
+                文法「{grammar_topic_str}」を使った**英語長文**とその読解問題。指示: {mix_instruction}
+                構成: [問題用紙] -> {separator_mark} -> [解答]
+                問題用紙の冒頭にタイトルと名前欄をつけること。
+                """
 
             prompt = f"""
             あなたは日本の中学校英語教師です。以下の条件でテストを作成してください。
             条件: レベル[{level}] 問題数[{q_num}]
             指示: {instruction}
             禁止: マークダウン記号(**など)
-            
-            【出力フォーマットのルール】
-            - 問題と解答の間には必ず「{separator_mark}」を入れること。
-            - リスニングの場合、放送文の終わりに「{script_mark}」を入れること。
-            
-            タイトル: {grammar_topic_str} 確認テスト ({problem_type})
-            名前: ____________________
             """
 
             # --- テキスト生成 ---
@@ -254,7 +248,9 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 script_part = parts[0].strip() # 放送文
                 rest_part = parts[1].strip()   # 問題と解答
                 
-                script_text = script_part.replace("[放送文]", "").replace("Script:", "").strip()
+                # スクリプトの掃除（Titleなどが残っていたら消す）
+                script_text = script_part.replace("Title:", "").strip()
+                
                 audio_data = generate_speech(script_text)
                 
                 if separator_mark in rest_part:
@@ -266,6 +262,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                     a_text = "分割失敗"
                     
             else:
+                # リスニング以外
                 if separator_mark in generated_text:
                     parts = generated_text.split(separator_mark)
                     q_text = parts[0].strip()
@@ -275,8 +272,6 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                     a_text = "分割失敗"
 
             new_data = {
-                "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                "topic": grammar_topic_str,
                 "type": problem_type,
                 "q_text": q_text,
                 "a_text": a_text,
@@ -284,7 +279,6 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 "script": script_text
             }
             
-            st.session_state.history.append(new_data)
             st.session_state.current_data = new_data
             st.rerun()
 
@@ -296,10 +290,10 @@ if st.session_state.current_data is not None:
     data = st.session_state.current_data
     
     st.divider()
-    st.subheader(f"📄 結果 ({data['type']})")
+    st.subheader(f"📄 作成結果")
     
     if data['type'] == "🎧 リスニング問題 (Listening)" and data['audio'] is not None:
-        st.info("🎧 生成された音声を確認できます")
+        st.info("🎧 生成された音声")
         st.audio(data['audio'], format="audio/mp3")
         
         st.download_button(
