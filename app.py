@@ -188,6 +188,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 指示: {mix_instruction}
                 """
             elif problem_type == "🇺🇸 英訳問題 (Jap → Eng)":
+                # ★ここを修正：番号振りを徹底
                 instruction = f"""
                 以下の文法項目を使った文を作るための**日本語の短文**を提示し、英語訳させる問題を作成してください。
                 文法項目: {grammar_topic_str}
@@ -195,6 +196,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 
                 【重要：出力形式】
                 [問題用紙]の側には、**日本語の文（問題）のみ**を箇条書きで記述すること。英語の答えは絶対に書かないこと。
+                必ず "1.", "2.", "3." と番号を振って記述すること。
                 [解答]の側に、対応する英語の正解文を記述すること。
                 """
             else: # 長文読解
@@ -267,22 +269,31 @@ if st.button("✨ 問題を作成する", use_container_width=True):
     except Exception as e:
         st.error(f"エラー: {e}")
 
-# --- 結果表示 ---
+# --- 結果表示 (編集機能付き) ---
 if st.session_state.current_data is not None:
     data = st.session_state.current_data
     
     st.divider()
     st.subheader(f"📄 結果 ({data['type']})")
     st.caption(f"文法: {data['topic']}")
+    st.info("💡 下のテキストボックスで内容を修正できます。修正後にPDFボタンを押すと反映されます。")
     
     tab1, tab2 = st.tabs(["問題プレビュー", "解答プレビュー"])
-    with tab1:
-        st.text_area("問題", data['q_text'], height=400)
-    with tab2:
-        st.text_area("解答", data['a_text'], height=400)
     
-    pdf_q = create_pdf(data['q_text'])
-    pdf_a = create_pdf(data['a_text'])
+    # ★ここが重要！編集した内容を保持してPDFにするロジック
+    with tab1:
+        # value=data['q_text'] でAIの結果を表示し、編集結果を edited_q_text に入れる
+        edited_q_text = st.text_area("問題（編集可）", value=data['q_text'], height=400)
+        # セッションステートも更新しておく（履歴呼び出し用）
+        st.session_state.current_data['q_text'] = edited_q_text
+        
+    with tab2:
+        edited_a_text = st.text_area("解答（編集可）", value=data['a_text'], height=400)
+        st.session_state.current_data['a_text'] = edited_a_text
+    
+    # PDFには「編集後のテキスト」を渡す
+    pdf_q = create_pdf(edited_q_text)
+    pdf_a = create_pdf(edited_a_text)
     
     col1, col2 = st.columns(2)
     with col1:
