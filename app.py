@@ -8,6 +8,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 import io
 import os
 import datetime
+import time
 
 # --- 0. ログイン機能 ---
 def check_password():
@@ -96,10 +97,14 @@ def create_pdf(problem_text):
 # --- 音声生成関数 ---
 def generate_speech(text):
     try:
+        # ポーズ（間）を作るためのハック
+        # [PAUSE] をピリオドとスペースの連続に置換して、AIに「溜め」を作らせる
+        formatted_text = text.replace("[PAUSE]", " ... ... ... ") 
+
         response = client.audio.speech.create(
             model="tts-1",
-            voice="alloy", # alloy, echo, fable, onyx, nova, shimmer から選べます
-            input=text
+            voice="alloy", # 聞き取りやすい標準的なナレーターの声
+            input=formatted_text
         )
         return io.BytesIO(response.content)
     except Exception as e:
@@ -108,7 +113,7 @@ def generate_speech(text):
 
 # --- 画面レイアウト ---
 st.title("🇬🇧 英語問題メーカー (Pro)")
-st.caption("リスニング: 会話→質問文(Question 1...)の順で再生されます。")
+st.caption("リスニングは「物語形式（Monologue）」で作成されます。")
 
 with st.sidebar:
     st.header("⚙️ 問題の設定")
@@ -135,6 +140,8 @@ with st.sidebar:
         "🇺🇸 英訳問題 (Jap → Eng)",
         "📖 長文読解 (Reading)"
     ])
+    
+    # ※会話・物語の選択肢を削除しました
     
     level = st.selectbox("レベル目安", ["中学1年基礎", "中学1年応用", "中学2年基礎", "中学2年応用", "中学3年受験"])
     q_num = st.slider("問題数", 1, 10, 5)
@@ -181,21 +188,27 @@ if st.button("✨ 問題を作成する", use_container_width=True):
 
             # 形式ごとの指示
             if problem_type == "🎧 リスニング問題 (Listening)":
-                # ★ここを変更: スクリプトの中に「Question...」を含めるよう指示
+                # ★物語形式（Story/Monologue）に固定
                 instruction = f"""
-                ターゲット文法「{grammar_topic_str}」を使った**リスニングテスト**を作成してください。
+                ターゲット文法「{grammar_topic_str}」を使った**リスニングテスト（物語形式）**を作成してください。
                 
-                【重要：構成について】
+                【重要：構成と音声読み上げのルール】
                 1. **[放送文(Script)]**: 
-                   - まず「対話」や「物語」を書く。
-                   - その直後に、**"Question 1: ...", "Question 2: ..." と質問文自体も続けて記述する**こと。
-                   - 音声生成に使うため、ここにはト書き（Narrator:など）以外の日本語解説は入れないこと。
+                   - 一人のナレーターが語る**「物語 (Story)」**を書いてください。日本語は不可です。
+                   - 物語の直後に、**"Question 1: ...", "Question 2: ..." と質問文を続けて記述**してください。
+                   - 質問と質問の間には、生徒が考える時間を取るため **`[PAUSE]`** という文字を入れてください。
+                   - 形式例:
+                     (English Story Text...)
+                     [PAUSE]
+                     Question 1. (Question text...)
+                     [PAUSE]
+                     Question 2. (Question text...)
                 
                 2. **[問題用紙(Student Sheet)]**: 
-                   - 生徒には音声で質問を聞かせるため、ここには**質問文を書かず**、(A) (B) (C) (D) の選択肢のみを記述すること。
+                   - ここには質問文を書かず、(A) (B) (C) (D) の選択肢のみを記述してください。
                 
                 3. 出力順序:
-                   [放送文(会話+質問)] -> {script_mark} -> [問題用紙(選択肢のみ)] -> {separator_mark} -> [解答(スクリプト訳・答え)]
+                   [放送文(英語のみ)] -> {script_mark} -> [問題用紙(選択肢のみ)] -> {separator_mark} -> [解答]
                 """
             elif problem_type == "🔠 4択問題 (Grammar)":
                 instruction = f"文法「{grammar_topic_str}」の**4択穴埋め問題**。(A)(B)(C)(D)形式。指示: {mix_instruction}"
@@ -238,17 +251,15 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             
             if problem_type == "🎧 リスニング問題 (Listening)" and script_mark in generated_text:
                 parts = generated_text.split(script_mark)
-                script_part = parts[0].strip()
-                rest_part = parts[1].strip()
+                script_part = parts[0].strip() # 放送文
+                rest_part = parts[1].strip()   # 問題と解答
                 
                 script_text = script_part.replace("[放送文]", "").replace("Script:", "").strip()
-                # 音声生成 (会話 + Questionも読まれる)
                 audio_data = generate_speech(script_text)
                 
                 if separator_mark in rest_part:
                     q_a_parts = rest_part.split(separator_mark)
                     q_text = q_a_parts[0].strip()
-                    # 解答PDFにはスクリプト全文を載せる
                     a_text = f"【放送文(Script)】\n\n{script_text}\n\n----------------\n\n" + q_a_parts[1].strip()
                 else:
                     q_text = rest_part
@@ -297,7 +308,7 @@ if st.session_state.current_data is not None:
             file_name=f"listening_audio.mp3",
             mime="audio/mpeg"
         )
-        with st.expander("放送文（スクリプト）を見る"):
+        with st.expander("放送文（スクリプト）を確認"):
             st.write(data['script'])
     
     tab1, tab2 = st.tabs(["問題用紙", "解答・解説"])
