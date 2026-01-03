@@ -155,19 +155,15 @@ if st.button("✨ 問題を作成する", use_container_width=True):
     if not os.path.exists("ipaexg.ttf"):
         st.warning("⚠️ 'ipaexg.ttf' が見つかりません。PDFの日本語が文字化けします。")
 
-    # 文法が選ばれていない場合のエラー処理
     if not selected_grammars:
         st.error("⚠️ 文法項目を少なくとも1つ選択してください。")
         st.stop()
 
     try:
-        # 文法リストを文字列に変換 (例: "be動詞, 一般動詞")
         grammar_topic_str = "、".join(selected_grammars)
         
         with st.spinner(f"AIが『{grammar_topic_str}』の問題を作成中..."):
             separator_mark = "|||SPLIT|||"
-            
-            # --- AIへの指示（プロンプト）の作成 ---
             
             if len(selected_grammars) == 1:
                 mix_instruction = f"ターゲット文法「{grammar_topic_str}」を集中的に使用してください。"
@@ -195,9 +191,20 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 指示: {mix_instruction}
                 """
             else: # 長文読解
+                # ★ここが今回の変更ポイント！多様な問題形式を要求します
                 instruction = f"""
-                以下の文法項目を多用した**英語の長文ストーリー**を作成し、読解問題を作成してください。
-                文法項目: {grammar_topic_str}
+                以下の構成で長文読解テストを作成してください。
+                
+                1. **本文**: 文法「{grammar_topic_str}」を多用した英語の長文ストーリーを書く。
+                   - その際、文法のポイントとなる重要な文に、下線(①, ②...)を引いておくこと。
+                
+                2. **設問**: 以下の3種類の問題を混ぜて作成すること（合計{q_num}問程度）。
+                   - **(A) 下線部訳**: 本文中の下線部(①, ②...)を日本語に訳す問題。
+                   - **(B) 内容一致**: 本文の内容に関して、(A)〜(D)の選択肢から選ぶ4択問題。
+                   - **(C) 穴埋め/語法**: 必要であれば、文法知識を問う適語補充問題など。
+                
+                3. **出力**: ストーリーと設問は「問題用紙」側に、全訳と解答は「解答」側に書くこと。
+                
                 指示: {mix_instruction}
                 """
 
@@ -212,7 +219,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             
             タイトル: {grammar_topic_str} 確認テスト ({problem_type})
             
-            (問題文)
+            (ここに問題文・長文・質問文を書く)
             
             {separator_mark}
             
@@ -242,7 +249,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
 
             new_data = {
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                "topic": grammar_topic_str, # 文字列として保存
+                "topic": grammar_topic_str,
                 "type": problem_type,
                 "q_text": q_text,
                 "a_text": a_text
