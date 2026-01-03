@@ -170,20 +170,16 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 vocab_limit_instruction = """
                 【超重要：単語レベル制限】
                 - 日本の中学1年生の教科書(New Horizon Book 1など)に出てくる**超基本的な単語のみ**を使用すること。
-                - 難しい動詞(decide, experience, realizedなど)や副詞(suddenly, unfortunatelyなど)は絶対に使用禁止。
-                - 基本動詞(go, come, eat, have, like, play, study, watch)と、身近な名詞(family, school, friend, food, sport)だけで構成すること。
                 """
             elif "中学2年" in level:
                 vocab_limit_instruction = """
                 【単語レベル制限】
                 - 日本の中学2年生レベル(英検4級〜3級)の単語を使用すること。
-                - 不定詞、動名詞、比較級、過去形などは使用してよいが、高校レベルの難解な単語は避けること。
                 """
             else: # 中学3年
                 vocab_limit_instruction = """
                 【単語レベル制限】
                 - 日本の高校入試レベル(英検3級〜準2級)の単語を使用すること。
-                - 関係代名詞や受動態を含む表現を使用してもよい。
                 """
 
             if len(selected_grammars) == 1:
