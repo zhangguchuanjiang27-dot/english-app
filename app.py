@@ -164,10 +164,32 @@ if st.button("✨ 問題を作成する", use_container_width=True):
         with st.spinner(f"AIが『{grammar_topic_str}』の問題を作成中..."):
             separator_mark = "|||SPLIT|||"
             
+            # ★レベルごとの単語制限ルール（ここが重要！）
+            vocab_limit_instruction = ""
+            if "中学1年" in level:
+                vocab_limit_instruction = """
+                【超重要：単語レベル制限】
+                - 日本の中学1年生の教科書(New Horizon Book 1など)に出てくる**超基本的な単語のみ**を使用すること。
+                - 難しい動詞(decide, experience, realizedなど)や副詞(suddenly, unfortunatelyなど)は絶対に使用禁止。
+                - 基本動詞(go, come, eat, have, like, play, study, watch)と、身近な名詞(family, school, friend, food, sport)だけで構成すること。
+                """
+            elif "中学2年" in level:
+                vocab_limit_instruction = """
+                【単語レベル制限】
+                - 日本の中学2年生レベル(英検4級〜3級)の単語を使用すること。
+                - 不定詞、動名詞、比較級、過去形などは使用してよいが、高校レベルの難解な単語は避けること。
+                """
+            else: # 中学3年
+                vocab_limit_instruction = """
+                【単語レベル制限】
+                - 日本の高校入試レベル(英検3級〜準2級)の単語を使用すること。
+                - 関係代名詞や受動態を含む表現を使用してもよい。
+                """
+
             if len(selected_grammars) == 1:
                 mix_instruction = f"ターゲット文法「{grammar_topic_str}」を集中的に使用してください。"
             else:
-                mix_instruction = f"ターゲット文法として選ばれた「{grammar_topic_str}」をなるべく全て使用・網羅するように構成してください。ランダムに散りばめるか、バランスよく配置してください。"
+                mix_instruction = f"ターゲット文法として選ばれた「{grammar_topic_str}」をなるべく全て使用・網羅するように構成してください。"
 
             # 形式ごとの指示
             if problem_type == "🔠 4択問題 (Grammar)":
@@ -175,10 +197,10 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 以下の文法項目に関する**4択穴埋め問題**を作成してください。
                 文法項目: {grammar_topic_str}
                 指示: {mix_instruction}
+                単語制限: {vocab_limit_instruction}
                 
                 【重要：空欄の形式】
                 問題文の空所は `( ______ )` のように、下線を使って明確に記述すること。
-                例: He ( ______ ) playing soccer.
                 選択肢は (A) (B) (C) (D) の形式で記述すること。
                 """
             elif problem_type == "🇯🇵 和訳問題 (Eng → Jap)":
@@ -186,13 +208,14 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 以下の文法項目を使った**英語の短文**を提示し、日本語訳させる問題を作成してください。
                 文法項目: {grammar_topic_str}
                 指示: {mix_instruction}
+                単語制限: {vocab_limit_instruction}
                 """
             elif problem_type == "🇺🇸 英訳問題 (Jap → Eng)":
-                # ★ここを修正：番号振りを徹底
                 instruction = f"""
                 以下の文法項目を使った文を作るための**日本語の短文**を提示し、英語訳させる問題を作成してください。
                 文法項目: {grammar_topic_str}
                 指示: {mix_instruction}
+                単語制限: {vocab_limit_instruction}
                 
                 【重要：出力形式】
                 [問題用紙]の側には、**日本語の文（問題）のみ**を箇条書きで記述すること。英語の答えは絶対に書かないこと。
@@ -204,6 +227,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 以下の構成で長文読解テストを作成してください。
                 
                 1. **本文**: 文法「{grammar_topic_str}」を多用した英語の長文ストーリーを作成する。
+                   - 【最重要】: {vocab_limit_instruction}
                 
                 2. **設問**: ストーリーの内容に関する**4択問題(A)(B)(C)(D)をちょうど4問**作成する。
                    - 質問には必ず "Q.1", "Q.2", "Q.3", "Q.4" と番号を振ること。
@@ -280,18 +304,14 @@ if st.session_state.current_data is not None:
     
     tab1, tab2 = st.tabs(["問題プレビュー", "解答プレビュー"])
     
-    # ★ここが重要！編集した内容を保持してPDFにするロジック
     with tab1:
-        # value=data['q_text'] でAIの結果を表示し、編集結果を edited_q_text に入れる
         edited_q_text = st.text_area("問題（編集可）", value=data['q_text'], height=400)
-        # セッションステートも更新しておく（履歴呼び出し用）
         st.session_state.current_data['q_text'] = edited_q_text
         
     with tab2:
         edited_a_text = st.text_area("解答（編集可）", value=data['a_text'], height=400)
         st.session_state.current_data['a_text'] = edited_a_text
     
-    # PDFには「編集後のテキスト」を渡す
     pdf_q = create_pdf(edited_q_text)
     pdf_a = create_pdf(edited_a_text)
     
