@@ -1,6 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
-import hmac # パスワードを安全に比較するための道具
+from openai import OpenAI # ★ここが変わりました
+import hmac
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
@@ -9,63 +9,50 @@ import io
 import os
 import datetime
 
-# --- 0. ログイン機能の関数 ---
+# --- 0. ログイン機能 ---
 def check_password():
-    """IDとパスワードによるログイン認証"""
-    
-    # すでにログイン済みならOKを返す
     if st.session_state.get('password_correct', False):
         return True
 
-    # --- ログイン画面の表示 ---
-    st.title("🔒 先生用ログイン")
+    st.title("🔒 先生用ログイン (OpenAI版)")
     st.caption("管理者から配布されたIDとパスワードを入力してください。")
     
-    # フォームを使ってEnterキーでログインできるようにする
     with st.form("login_form"):
         user_id = st.text_input("ユーザーID")
         password = st.text_input("パスワード", type="password")
         submit_button = st.form_submit_button("ログイン")
 
         if submit_button:
-            # Secretsに「passwords」という設定があるか確認
             if "passwords" not in st.secrets:
                 st.error("設定エラー: Secretsにユーザー情報が登録されていません。")
                 return False
             
-            # IDが存在し、かつパスワードが一致するか確認
             if user_id in st.secrets["passwords"] and \
                hmac.compare_digest(password, st.secrets["passwords"][user_id]):
-                
                 st.session_state['password_correct'] = True
-                st.session_state['user_id'] = user_id # 誰が入ったか記録
-                st.rerun() # 画面を再読み込みしてアプリへ
-                
+                st.session_state['user_id'] = user_id
+                st.rerun()
             else:
                 st.error("IDまたはパスワードが間違っています。")
-
     return False
 
-# --- メイン処理の前にロックをかける ---
 if not check_password():
-    st.stop() # ログインしていない場合はここでプログラムを強制停止！
-
-# ========================================================
-# 🔓 ここから下は、ログイン成功者だけが見られる世界
-# ========================================================
-
-# --- APIキーの取得（Secretsから安全に取得） ---
-try:
-    API_KEY = st.secrets["GOOGLE_API_KEY"]
-except:
-    st.error("APIキーが設定されていません。Streamlit CloudのSecretsを設定してください。")
     st.stop()
 
-# --- 初期設定 ---
-if len(API_KEY) < 30:
-    st.error("APIキーが無効です。")
-else:
-    genai.configure(api_key=API_KEY)
+# ========================================================
+# 🔓 ログイン成功後の世界
+# ========================================================
+
+# --- APIキーの取得（Secretsから取得） ---
+try:
+    # ★重要: Secretsのキー名を「OPENAI_API_KEY」に変えてください
+    OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+except:
+    st.error("APIキーが設定されていません。Secretsの OPENAI_API_KEY を設定してください。")
+    st.stop()
+
+# --- OpenAIクライアントの準備 ---
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # --- セッションステート初期化 ---
 if 'history' not in st.session_state:
@@ -73,7 +60,7 @@ if 'history' not in st.session_state:
 if 'current_data' not in st.session_state:
     st.session_state.current_data = None
 
-# --- サイドバー：ログアウト機能とユーザー表示 ---
+# --- サイドバー ---
 st.sidebar.success(f"ログイン中: {st.session_state['user_id']} 先生")
 if st.sidebar.button("ログアウト"):
     st.session_state['password_correct'] = False
@@ -81,13 +68,10 @@ if st.sidebar.button("ログアウト"):
     st.rerun()
 st.sidebar.divider()
 
-# --- (以下、いつものアプリ機能) ---
-
-# --- 1. PDFを作る関数 ---
+# --- PDF関数 ---
 def create_pdf(problem_text):
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=A4)
-    
     font_path = "ipaexg.ttf" 
     if os.path.exists(font_path):
         try:
@@ -109,25 +93,21 @@ def create_pdf(problem_text):
             else:
                 p.setFont("Helvetica", 11)
             y = 800
-        
         try:
             p.drawString(50, y, line)
         except:
             pass
         y -= line_height
-        
     p.save()
     buffer.seek(0)
     return buffer
 
-# --- 2. 画面レイアウト ---
+# --- 画面レイアウト ---
 st.title("🇬🇧 英語問題メーカー")
-st.caption("AIを活用した英語教材作成ツール")
+st.caption("Powered by GPT-4o mini (High Speed & Stable)")
 
-# サイドバー設定
 with st.sidebar:
     st.header("⚙️ 問題の設定")
-    
     grammar_list = [
         "be動詞 (現在)", "一般動詞 (現在)", "疑問文・否定文の作り方",
         "疑問詞 (5W1H)", "命令文", "三人称単数現在 (三単現)",
@@ -135,23 +115,16 @@ with st.sidebar:
         "名詞の複数形", "代名詞 (I, my, me, mine等)",
         "be動詞 (過去)", "過去進行形"
     ]
-    
     grammar_topic = st.selectbox("ターゲット文法", grammar_list)
     st.divider()
-    
-    problem_type = st.radio(
-        "問題形式を選択",
-        [
-            "🔠 4択問題 (Grammar)",
-            "🇯🇵 和訳問題 (Eng → Jap)",
-            "🇺🇸 英訳問題 (Jap → Eng)",
-            "📖 長文読解 (Reading)"
-        ]
-    )
-    
+    problem_type = st.radio("問題形式を選択", [
+        "🔠 4択問題 (Grammar)",
+        "🇯🇵 和訳問題 (Eng → Jap)",
+        "🇺🇸 英訳問題 (Jap → Eng)",
+        "📖 長文読解 (Reading)"
+    ])
     level = st.selectbox("レベル目安", ["中学1年基礎", "中学1年応用", "中学2年基礎", "中学2年応用", "中学3年受験"])
     q_num = st.slider("問題数", 1, 10, 5)
-
     st.divider()
     
     st.header("📚 作成履歴")
@@ -165,16 +138,16 @@ with st.sidebar:
     else:
         st.info("履歴なし")
 
-# --- 3. メイン処理 ---
+# --- メイン処理 ---
 if st.button("✨ 問題を作成する", use_container_width=True):
     if not os.path.exists("ipaexg.ttf"):
         st.warning("⚠️ 'ipaexg.ttf' が見つかりません。PDFの日本語が文字化けします。")
 
     try:
-        with st.spinner(f"AIが『{problem_type}』を作成中..."):
-            model = genai.GenerativeModel('models/gemini-1.5-flash')
+        with st.spinner(f"AI(GPT-4o mini)が思考中..."):
             separator_mark = "|||SPLIT|||"
             
+            # 命令文の作成
             if problem_type == "🔠 4択問題 (Grammar)":
                 instruction = f"ターゲット文法「{grammar_topic}」に関する**4択穴埋め問題**を作成してください。選択肢は (A) (B) (C) (D)。"
             elif problem_type == "🇯🇵 和訳問題 (Eng → Jap)":
@@ -203,9 +176,17 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             【解答・解説】
             (解答文)
             """
+
+            # --- OpenAIへのリクエスト ---
+            response = client.chat.completions.create(
+                model="gpt-4o-mini", # ★ここで最強コスパモデルを指定！
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
             
-            response = model.generate_content(prompt)
-            generated_text = response.text
+            generated_text = response.choices[0].message.content
             generated_text = generated_text.replace("**", "").replace("##", "").replace("__", "")
             
             if separator_mark in generated_text:
@@ -231,7 +212,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
     except Exception as e:
         st.error(f"エラー: {e}")
 
-# --- 4. 結果表示 ---
+# --- 結果表示 ---
 if st.session_state.current_data is not None:
     data = st.session_state.current_data
     
