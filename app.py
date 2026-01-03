@@ -1,5 +1,5 @@
 import streamlit as st
-from openai import OpenAI # ★ここが変わりました
+from openai import OpenAI
 import hmac
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -43,9 +43,8 @@ if not check_password():
 # 🔓 ログイン成功後の世界
 # ========================================================
 
-# --- APIキーの取得（Secretsから取得） ---
+# --- APIキーの取得 ---
 try:
-    # ★重要: Secretsのキー名を「OPENAI_API_KEY」に変えてください
     OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 except:
     st.error("APIキーが設定されていません。Secretsの OPENAI_API_KEY を設定してください。")
@@ -103,8 +102,8 @@ def create_pdf(problem_text):
     return buffer
 
 # --- 画面レイアウト ---
-st.title("🇬🇧 英語問題メーカー")
-st.caption("Powered by GPT-4o mini (High Speed & Stable)")
+st.title("🇬🇧 英語問題メーカー (Mix Mode)")
+st.caption("複数の文法項目を自由に組み合わせて出題できます。")
 
 with st.sidebar:
     st.header("⚙️ 問題の設定")
@@ -113,9 +112,16 @@ with st.sidebar:
         "疑問詞 (5W1H)", "命令文", "三人称単数現在 (三単現)",
         "現在進行形", "can (助動詞)", "一般動詞の過去形",
         "名詞の複数形", "代名詞 (I, my, me, mine等)",
-        "be動詞 (過去)", "過去進行形"
+        "be動詞 (過去)", "過去進行形", "不定詞", "動名詞", "比較"
     ]
-    grammar_topic = st.selectbox("ターゲット文法", grammar_list)
+    
+    # ★変更点: selectbox -> multiselect (複数選択可能に)
+    selected_grammars = st.multiselect(
+        "ターゲット文法 (複数選択可)", 
+        grammar_list, 
+        default=["be動詞 (現在)"] # 最初から1つ選んでおく
+    )
+    
     st.divider()
     problem_type = st.radio("問題形式を選択", [
         "🔠 4択問題 (Grammar)",
@@ -131,7 +137,14 @@ with st.sidebar:
     if len(st.session_state.history) > 0:
         for i, item in enumerate(reversed(st.session_state.history)):
             type_label = item['type'][:2] 
-            label = f"{type_label} {item['time']} - {item['topic']}"
+            # 文法項目が多いときは「be動詞 他2件」のように省略表示
+            topics = item['topic'].split("、")
+            if len(topics) > 1:
+                topic_label = f"{topics[0]} 他{len(topics)-1}件"
+            else:
+                topic_label = topics[0]
+                
+            label = f"{type_label} {item['time']} - {topic_label}"
             if st.button(label, key=f"hist_{i}"):
                 st.session_state.current_data = item
                 st.rerun()
@@ -143,19 +156,52 @@ if st.button("✨ 問題を作成する", use_container_width=True):
     if not os.path.exists("ipaexg.ttf"):
         st.warning("⚠️ 'ipaexg.ttf' が見つかりません。PDFの日本語が文字化けします。")
 
+    # 文法が選ばれていない場合のエラー処理
+    if not selected_grammars:
+        st.error("⚠️ 文法項目を少なくとも1つ選択してください。")
+        st.stop()
+
     try:
-        with st.spinner(f"AI(GPT-4o mini)が思考中..."):
+        # 文法リストを文字列に変換 (例: "be動詞, 一般動詞")
+        grammar_topic_str = "、".join(selected_grammars)
+        
+        with st.spinner(f"AIが『{grammar_topic_str}』の問題を作成中..."):
             separator_mark = "|||SPLIT|||"
             
-            # 命令文の作成
+            # --- AIへの指示（プロンプト）の作成 ---
+            
+            # 単発か複数かでニュアンスを変える
+            if len(selected_grammars) == 1:
+                mix_instruction = f"ターゲット文法「{grammar_topic_str}」を集中的に使用してください。"
+            else:
+                mix_instruction = f"ターゲット文法として選ばれた「{grammar_topic_str}」をなるべく全て使用・網羅するように構成してください。ランダムに散りばめるか、バランスよく配置してください。"
+
+            # 形式ごとの指示
             if problem_type == "🔠 4択問題 (Grammar)":
-                instruction = f"ターゲット文法「{grammar_topic}」に関する**4択穴埋め問題**を作成してください。選択肢は (A) (B) (C) (D)。"
+                instruction = f"""
+                以下の文法項目に関する**4択穴埋め問題**を作成してください。
+                文法項目: {grammar_topic_str}
+                指示: {mix_instruction}
+                選択肢は (A) (B) (C) (D)。
+                """
             elif problem_type == "🇯🇵 和訳問題 (Eng → Jap)":
-                instruction = f"ターゲット文法「{grammar_topic}」を使った**英語の短文**を提示し、日本語訳させる問題を作成してください。"
+                instruction = f"""
+                以下の文法項目を使った**英語の短文**を提示し、日本語訳させる問題を作成してください。
+                文法項目: {grammar_topic_str}
+                指示: {mix_instruction}
+                """
             elif problem_type == "🇺🇸 英訳問題 (Jap → Eng)":
-                instruction = f"ターゲット文法「{grammar_topic}」を使った文を作るための**日本語の短文**を提示し、英語訳させる問題を作成してください。"
-            else: 
-                instruction = f"ターゲット文法「{grammar_topic}」を多用した**英語の長文ストーリー**を作成し、読解問題を作成してください。"
+                instruction = f"""
+                以下の文法項目を使った文を作るための**日本語の短文**を提示し、英語訳させる問題を作成してください。
+                文法項目: {grammar_topic_str}
+                指示: {mix_instruction}
+                """
+            else: # 長文読解
+                instruction = f"""
+                以下の文法項目を多用した**英語の長文ストーリー**を作成し、読解問題を作成してください。
+                文法項目: {grammar_topic_str}
+                指示: {mix_instruction}
+                """
 
             prompt = f"""
             あなたは日本の中学校英語教師です。以下の条件でテストを作成してください。
@@ -166,7 +212,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             【出力フォーマット】
             必ず問題と解答の間に「{separator_mark}」を入れてください。
             
-            タイトル: {grammar_topic} 確認テスト ({problem_type})
+            タイトル: {grammar_topic_str} 確認テスト ({problem_type})
             名前: ____________________
             
             (問題文)
@@ -179,7 +225,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
 
             # --- OpenAIへのリクエスト ---
             response = client.chat.completions.create(
-                model="gpt-4o-mini", # ★ここで最強コスパモデルを指定！
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": prompt}
@@ -199,7 +245,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
 
             new_data = {
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                "topic": grammar_topic,
+                "topic": grammar_topic_str, # 文字列として保存
                 "type": problem_type,
                 "q_text": q_text,
                 "a_text": a_text
@@ -217,7 +263,8 @@ if st.session_state.current_data is not None:
     data = st.session_state.current_data
     
     st.divider()
-    st.subheader(f"📄 {data['topic']} ({data['type']})")
+    st.subheader(f"📄 結果 ({data['type']})")
+    st.caption(f"文法: {data['topic']}")
     
     tab1, tab2 = st.tabs(["問題プレビュー", "解答プレビュー"])
     with tab1:
