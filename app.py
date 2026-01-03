@@ -115,11 +115,10 @@ with st.sidebar:
         "be動詞 (過去)", "過去進行形", "不定詞", "動名詞", "比較"
     ]
     
-    # ★変更点: selectbox -> multiselect (複数選択可能に)
     selected_grammars = st.multiselect(
         "ターゲット文法 (複数選択可)", 
         grammar_list, 
-        default=["be動詞 (現在)"] # 最初から1つ選んでおく
+        default=["be動詞 (現在)"]
     )
     
     st.divider()
@@ -137,7 +136,6 @@ with st.sidebar:
     if len(st.session_state.history) > 0:
         for i, item in enumerate(reversed(st.session_state.history)):
             type_label = item['type'][:2] 
-            # 文法項目が多いときは「be動詞 他2件」のように省略表示
             topics = item['topic'].split("、")
             if len(topics) > 1:
                 topic_label = f"{topics[0]} 他{len(topics)-1}件"
@@ -156,21 +154,16 @@ if st.button("✨ 問題を作成する", use_container_width=True):
     if not os.path.exists("ipaexg.ttf"):
         st.warning("⚠️ 'ipaexg.ttf' が見つかりません。PDFの日本語が文字化けします。")
 
-    # 文法が選ばれていない場合のエラー処理
     if not selected_grammars:
         st.error("⚠️ 文法項目を少なくとも1つ選択してください。")
         st.stop()
 
     try:
-        # 文法リストを文字列に変換 (例: "be動詞, 一般動詞")
         grammar_topic_str = "、".join(selected_grammars)
         
         with st.spinner(f"AIが『{grammar_topic_str}』の問題を作成中..."):
             separator_mark = "|||SPLIT|||"
             
-            # --- AIへの指示（プロンプト）の作成 ---
-            
-            # 単発か複数かでニュアンスを変える
             if len(selected_grammars) == 1:
                 mix_instruction = f"ターゲット文法「{grammar_topic_str}」を集中的に使用してください。"
             else:
@@ -197,8 +190,12 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 指示: {mix_instruction}
                 """
             else: # 長文読解
+                # ★ここを修正しました！
                 instruction = f"""
-                以下の文法項目を多用した**英語の長文ストーリー**を作成し、読解問題を作成してください。
+                以下の構成で長文読解テストを作成してください。
+                1. 文法「{grammar_topic_str}」を多用した**英語の長文ストーリー**を作成する。
+                2. そのストーリーの直後に、内容を確認する**英語の質問(Questions)**を作成する。
+                3. 質問には必ず **"Q.1", "Q.2"** のように番号を振って記述すること。
                 文法項目: {grammar_topic_str}
                 指示: {mix_instruction}
                 """
@@ -213,7 +210,6 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             必ず問題と解答の間に「{separator_mark}」を入れてください。
             
             タイトル: {grammar_topic_str} 確認テスト ({problem_type})
-            名前: ____________________
             
             (問題文)
             
@@ -245,7 +241,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
 
             new_data = {
                 "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                "topic": grammar_topic_str, # 文字列として保存
+                "topic": grammar_topic_str,
                 "type": problem_type,
                 "q_text": q_text,
                 "a_text": a_text
