@@ -129,7 +129,7 @@ with st.sidebar:
         "📖 長文読解 (Reading)"
     ])
     
-    # ★変更点: レベル選択を3つにシンプル化
+    # 学年レベル選択（3択に固定）
     level = st.selectbox("学年レベル", ["中学1年生", "中学2年生", "中学3年生"])
     
     q_num = st.slider("問題数", 1, 10, 5)
@@ -167,14 +167,14 @@ if st.button("✨ 問題を作成する", use_container_width=True):
         with st.spinner(f"AIが『{grammar_topic_str}』の問題を作成中..."):
             separator_mark = "|||SPLIT|||"
             
-            # ★レベルごとの単語制限ルール（学年別に整理）
+            # ★レベルごとの単語制限ルール
             vocab_limit_instruction = ""
             if level == "中学1年生":
                 vocab_limit_instruction = """
                 【超重要：単語レベル制限】
                 - 中学1年生の教科書(New Horizon Book 1など)に出てくる**超基本的な英単語のみ**を使用すること。
                 - 難しい動詞(decide, experience, realizedなど)や副詞は絶対に使用禁止。
-            
+                
                 """
             elif level == "中学2年生":
                 vocab_limit_instruction = """
@@ -186,7 +186,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 vocab_limit_instruction = """
                 【単語レベル制限】
                 - 中学3年生・高校入試レベル(英検3級〜準2級)の英単語を使用すること。
-                
+               
                 """
 
             if len(selected_grammars) == 1:
@@ -207,6 +207,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 選択肢は (A) (B) (C) (D) の形式で記述すること。
                 """
             elif problem_type == "🇯🇵 和訳問題 (Eng → Jap)":
+                # ★修正ポイント：和訳問題のフォーマット指定を強化
                 instruction = f"""
                 以下の文法項目を使った**英語の短文**を提示し、日本語訳させる問題を作成してください。
                 文法項目: {grammar_topic_str}
@@ -217,7 +218,6 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 [問題用紙]の側には、**英語の文（問題）のみ**を箇条書きで記述すること。日本語の訳（答え）は絶対に書かないこと。
                 必ず "1.", "2.", "3." と番号を振って記述すること。
                 [解答]の側に、対応する日本語の全訳を記述すること。
-                """
                 """
             elif problem_type == "🇺🇸 英訳問題 (Jap → Eng)":
                 instruction = f"""
@@ -232,7 +232,6 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 [解答]の側に、対応する英語の正解文を記述すること。
                 """
             else: # 長文読解
-                # ★ここを修正：英語での出力を強制
                 instruction = f"""
                 以下の構成で長文読解テストを作成してください。
                 
