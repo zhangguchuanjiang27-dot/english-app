@@ -166,6 +166,10 @@ with st.sidebar:
         "📖 長文読解 (Reading)"
     ])
     
+    reading_text_type = "物語文 (Story)"
+    if problem_type == "📖 長文読解 (Reading)":
+        reading_text_type = st.radio("文章タイプ", ["物語文 (Story)", "会話文 (Conversation)"])
+    
     level = st.selectbox("学年レベル", ["中学1年生", "中学2年生", "中学3年生"])
     q_num = st.slider("問題数", 1, 10, 5)
     st.divider()
@@ -286,19 +290,22 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 [解答]の側に、空所に入る語句のみを記述すること。
                 """
             else: # 長文読解
+                text_type_en = "Story" if "物語" in reading_text_type else "Conversation/Dialog"
+                text_type_jp = "ストーリー" if "物語" in reading_text_type else "会話文"
+
                 instruction = f"""
                 以下の構成で長文読解テストを作成してください。
                 
-                1. **本文(Passage)**: 文法「{grammar_topic_str}」を多用した**英語の長文ストーリー(Story in English)**を作成する。
+                1. **本文(Passage)**: 文法「{grammar_topic_str}」を多用した**英語の{text_type_jp}({text_type_en})**を作成する。
                    - 【絶対ルール】本文は必ず**英語(English)**で書くこと。日本語で書いてはいけません。
                    - 単語レベル: {vocab_limit_instruction}
                 
-                2. **設問(Questions)**: ストーリーの内容に関する**4択問題(A)(B)(C)(D)をちょうど4問**作成する。
+                2. **設問(Questions)**: {text_type_jp}の内容に関する**4択問題(A)(B)(C)(D)をちょうど4問**作成する。
                    - 質問には必ず "Q.1", "Q.2", "Q.3", "Q.4" と番号を振ること。
                 
                 3. **出力ルール**:
-                   - [問題用紙]側: 英語のストーリー本文と、4つの設問(選択肢含む)のみを記述。
-                   - [解答]側: **冒頭に必ずストーリーの全文和訳を記述する**こと。その後に、設問の正解と解説を記述すること。
+                   - [問題用紙]側: 英語の{text_type_jp}本文と、4つの設問(選択肢含む)のみを記述。
+                   - [解答]側: **冒頭に必ず{text_type_jp}の全文和訳を記述する**こと。その後に、設問の正解と解説を記述すること。
                 
                 指示: {mix_instruction}
                 """
