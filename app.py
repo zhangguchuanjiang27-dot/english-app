@@ -213,6 +213,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 vocab_limit_instruction = """
                 【超重要：単語レベル制限】
                 - 中学1年生の教科書(New Horizon Book 1など)に出てくる**超基本的な英単語のみ**を使用すること。
+                - 許可されていない文法を使った難しい表現は避けてください。
                 """
             elif level == "中学2年生":
                 vocab_limit_instruction = """
@@ -224,6 +225,24 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 【単語レベル制限】
                 - 中学3年生・高校入試レベル(英検3級〜準2級)の英単語を使用すること。
                 """
+            
+            # --- 文法レベル制限の構築 ---
+            allowed_grammar_items = []
+            if level == "中学1年生":
+                allowed_grammar_items = grammar_dict["中学1年生"]
+            elif level == "中学2年生":
+                allowed_grammar_items = grammar_dict["中学1年生"] + grammar_dict["中学2年生"]
+            else: # 中学3年生
+                allowed_grammar_items = grammar_dict["中学1年生"] + grammar_dict["中学2年生"] + grammar_dict["中学3年生"]
+            
+            allowed_grammar_str = "、".join(allowed_grammar_items)
+            grammar_limit_instruction = f"""
+            【文法使用制限 (重要)】
+            - 本文および設問では、原則として以下の「{level}までの既習範囲」の文法のみを使用してください。
+            - 許可される文法範囲: {allowed_grammar_str}
+            - 上記範囲外の文法 (例: 中1なのにshouldなど) は絶対に使用しないでください。
+            - ただし、ターゲットとして選択された文法項目「{grammar_topic_str}」は最優先で使用してください。
+            """
 
             if len(selected_grammars) == 1:
                 mix_instruction = f"ターゲット文法「{grammar_topic_str}」を集中的に使用してください。"
@@ -299,9 +318,12 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 1. **本文(Passage)**: 文法「{grammar_topic_str}」を多用した**英語の{text_type_jp}({text_type_en})**を作成する。
                    - 【絶対ルール】本文は必ず**英語(English)**で書くこと。日本語で書いてはいけません。
                    - 単語レベル: {vocab_limit_instruction}
+                   - 文法レベル: {grammar_limit_instruction}
                 
                 2. **設問(Questions)**: {text_type_jp}の内容に関する**4択問題(A)(B)(C)(D)をちょうど4問**作成する。
                    - 質問には必ず "Q.1", "Q.2", "Q.3", "Q.4" と番号を振ること。
+                   - 【重要】設問文や選択肢を作成する際も、必ず文法使用制限({grammar_limit_instruction})を守ること。
+                   - 【重要】ターゲット文法「{grammar_topic_str}」に関連する内容を問うたり、選択肢にその文法を含めたりして、ターゲット文法が定着しているか確認できる問題にすること。
                 
                 3. **出力ルール**:
                    - [問題用紙]側: 英語の{text_type_jp}本文と、4つの設問(選択肢含む)のみを記述。
