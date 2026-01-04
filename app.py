@@ -120,7 +120,7 @@ with st.sidebar:
     st.divider()
 
     grammar_list = [
-        "be動詞 (現在)", "一般動詞 (現在)", "疑問文・否定文の作り方",
+        "be動詞 (現在)", "一般動詞 (現在)",
         "疑問詞 (5W1H)", "命令文", "三人称単数現在 (三単現)",
         "現在進行形", "can (助動詞)", "一般動詞の過去形",
         "名詞の複数形", "代名詞 (I, my, me, mine等)",
@@ -200,7 +200,10 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 mix_instruction = f"ターゲット文法「{grammar_topic_str}」を集中的に使用してください。"
             else:
                 mix_instruction = f"ターゲット文法として選ばれた「{grammar_topic_str}」をなるべく全て使用・網羅するように構成してください。"
-
+            
+            # 全文法共通: 否定形・疑問形のバランス指示
+            mix_instruction += "\n(重要: 選択された文法項目について、肯定形(Affirmative)だけでなく、否定形(Negative)や疑問形(Question)もバランスよく出題に含めてください。常に肯定文ばかりにならないように注意してください。)"
+           
             # 形式ごとの指示
             if problem_type == "🔠 4択問題 (Grammar)":
                 instruction = f"""
