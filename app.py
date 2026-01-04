@@ -160,6 +160,7 @@ with st.sidebar:
     st.divider()
     problem_type = st.radio("問題形式を選択", [
         "🔠 4択問題 (Grammar)",
+        "✏️ 空欄補充問題 (Fill-in-the-blank)",
         "🇯🇵 和訳問題 (Eng → Jap)",
         "🇺🇸 英訳問題 (Jap → Eng)",
         "📖 長文読解 (Reading)"
@@ -267,6 +268,20 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 [問題用紙]の側には、**日本語の文（問題）のみ**を箇条書きで記述すること。英語の答えは絶対に書かないこと。
                 必ず "1.", "2.", "3." と番号を振って記述すること。
                 [解答]の側に、対応する英語の正解文を記述すること。
+                """
+            elif problem_type == "✏️ 空欄補充問題 (Fill-in-the-blank)":
+                instruction = f"""
+                以下の文法項目を使った**空所補充問題**を作成してください。
+                文法項目: {grammar_topic_str}
+                指示: {mix_instruction}
+                単語制限: {vocab_limit_instruction}
+
+                【重要：出力形式】
+                [問題用紙]の側には、以下の形式で記述すること。
+                1. 英文の空所を `(      )` で示し、その後に日本語訳を付記する。
+                   例: I (      ) playing soccer now. (私は今サッカーをしています。)
+                
+                [解答]の側に、空所に入る語句のみを記述すること。
                 """
             else: # 長文読解
                 instruction = f"""
