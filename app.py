@@ -159,19 +159,24 @@ with st.sidebar:
 
     st.divider()
     problem_type = st.radio("問題形式を選択", [
-        "🔠 4択問題 (Grammar)",
-        "✏️ 空欄補充問題 (Fill-in-the-blank)",
-        "🇯🇵 和訳問題 (Eng → Jap)",
-        "🇺🇸 英訳問題 (Jap → Eng)",
-        "📖 長文読解 (Reading)"
+        "🔠 4択問題",
+        "✏️ 空欄補充問題",
+        "和訳問題",
+        "英訳問題",
+        "📖 長文読解 (4択問題)"
     ])
     
     reading_text_type = "物語文 (Story)"
-    if problem_type == "📖 長文読解 (Reading)":
+    if "長文読解" in problem_type:
         reading_text_type = st.radio("文章タイプ", ["物語文 (Story)", "会話文 (Conversation)"])
     
     level = st.selectbox("学年レベル", ["中学1年生", "中学2年生", "中学3年生"])
-    q_num = st.slider("問題数", 1, 10, 5)
+    
+    if "長文読解" in problem_type:
+        st.info("※長文読解は「4問」固定です。")
+        q_num = 4
+    else:
+        q_num = st.slider("問題数", 1, 10, 5)
     st.divider()
     
     st.header("📚 作成履歴")
