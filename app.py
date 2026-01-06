@@ -402,11 +402,11 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             # --- OpenAIへのリクエスト ---
             response = client.chat.completions.create(
                 model=selected_model, # ★スイッチで切り替わったモデルを使う
-                temperature=0.7, # 出力の安定性を高める
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "system", "content": "You are a veteran English teacher known for creating high-quality, error-free educational materials. Your task is to generate perfect English problems that strictly follow the given constraints."},
                     {"role": "user", "content": prompt}
-                ]
+                ],
+                temperature=0.2, # 生成の揺らぎを抑えて正確性を重視
             )
             
             generated_text = response.choices[0].message.content
