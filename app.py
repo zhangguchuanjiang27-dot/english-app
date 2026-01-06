@@ -136,11 +136,11 @@ with st.sidebar:
     st.header("⚙️ 問題の設定")
     
     # ★ここに追加！モデル切り替えスイッチ
-    use_gpt4 = st.toggle("🔥 高性能モデル (GPT-4o) を使う", value=False)
+    use_gpt4 = st.toggle("🔥 高性能モデル (GPT-4o) を使う", value=True)
     if use_gpt4:
         selected_model = "gpt-4o"
     else:
-        st.caption("※高速生成モード (GPT-4o-mini)")
+        st.caption("※高速生成モード (gpt-4o-mini)")
         selected_model = "gpt-4o-mini"
     
     st.divider()
@@ -402,6 +402,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             # --- OpenAIへのリクエスト ---
             response = client.chat.completions.create(
                 model=selected_model, # ★スイッチで切り替わったモデルを使う
+                temperature=0.7, # 出力の安定性を高める
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": prompt}
