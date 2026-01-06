@@ -492,36 +492,53 @@ if st.session_state.current_data is not None:
     st.divider()
     
     # --- ローカル保存機能 ---
-    st.subheader("💾 PCのフォルダに別名保存")
-    with st.expander("保存設定を開く", expanded=True):
-        # デフォルト保存先（デスクトップに 'Created_Problems' フォルダを作るなど）
-        default_path = os.path.join(os.path.expanduser("~"), "Desktop", "英語問題作成_保存用")
-        save_path = st.text_input("保存先フォルダのパス", value=default_path)
-        
-        # ファイル名の生成
-        now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        sanitized_topic = data['topic'][:10].replace("、", "_").replace(" ", "")
-        default_filename_base = f"{now_str}_{sanitized_topic}"
-        
+    st.subheader("💾 PCのフォルダに保存")
+    st.caption("ボタンを押すと、フォルダ選択画面が開きます。")
+
+    # ファイル名の生成
+    now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    sanitized_topic = data['topic'][:10].replace("、", "_").replace(" ", "")
+    default_filename_base = f"{now_str}_{sanitized_topic}"
+    
+    col_name, col_btn = st.columns([2, 1])
+    with col_name:
         filename_base = st.text_input("ファイル名（拡張子不要）", value=default_filename_base)
-        
-        if st.button("指定したフォルダに保存する"):
+    
+    with col_btn:
+        st.write("") # レイアウト調整
+        st.write("")
+        if st.button("📂 フォルダを選択して保存"):
             try:
-                # フォルダがなければ作成
-                if not os.path.exists(save_path):
-                    os.makedirs(save_path)
-                    st.info(f"フォルダを作成しました: {save_path}")
+                import tkinter as tk
+                from tkinter import filedialog
                 
-                # パスの構築
-                q_file_path = os.path.join(save_path, f"{filename_base}_問題.pdf")
-                a_file_path = os.path.join(save_path, f"{filename_base}_解答.pdf")
+                # Tkinterのルートウィンドウ作成（非表示設定）
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes('-topmost', True) # 最前面に表示
                 
-                # 保存実行
-                with open(q_file_path, "wb") as f:
-                    f.write(pdf_q_bytes)
-                with open(a_file_path, "wb") as f:
-                    f.write(pdf_a_bytes)
-                    
-                st.success(f"✅ 保存完了！\n\n- {q_file_path}\n- {a_file_path}")
+                # フォルダ選択ダイアログを表示
+                folder_path = filedialog.askdirectory(
+                    initialdir=os.path.expanduser("~/Desktop"),
+                    title="保存先フォルダを選択してください"
+                )
+                
+                root.destroy() # ウィンドウ破棄
+                
+                if folder_path:
+                    try:
+                        q_file_path = os.path.join(folder_path, f"{filename_base}_問題.pdf")
+                        a_file_path = os.path.join(folder_path, f"{filename_base}_解答.pdf")
+                        
+                        with open(q_file_path, "wb") as f:
+                            f.write(pdf_q_bytes)
+                        with open(a_file_path, "wb") as f:
+                            f.write(pdf_a_bytes)
+                            
+                        st.success(f"✅ 保存しました！\n\n場所: {folder_path}")
+                    except Exception as e:
+                        st.error(f"保存中にエラーが発生しました: {e}")
+                else:
+                    st.info("保存をキャンセルしました。")
             except Exception as e:
-                st.error(f"保存エラー: {e}")
+                st.error(f"機能エラー: {e}")
