@@ -103,7 +103,7 @@ def create_pdf(problem_text):
 
 # --- 画面レイアウト ---
 st.title("英語問題メーカー")
-st.caption("複数の文法項目を自由に組み合わせて出題できます。")
+
 
 with st.sidebar:
     st.header("⚙️ 問題の設定")
@@ -111,7 +111,6 @@ with st.sidebar:
     # ★ここに追加！モデル切り替えスイッチ
     use_gpt4 = st.toggle("🔥 高性能モデル (GPT-4o) を使う", value=False)
     if use_gpt4:
-        st.caption("※賢いですが、生成に少し時間がかかります。")
         selected_model = "gpt-4o"
     else:
         st.caption("※高速生成モード (GPT-4o-mini)")
@@ -262,7 +261,8 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 mix_instruction += "\n(重要: be動詞の問題では、主語を I, You, He, She, They などの代名詞だけでなく、『This/That/These/Those』、『There is/are構文』、『人の名前 (Ken, My father等)』など多様な主語をバランスよく使ってください。)"
            
             # 形式ごとの指示
-            if problem_type == "🔠 4択問題 (Grammar)":
+            # 形式ごとの指示
+            if problem_type == "🔠 4択問題":
                 instruction = f"""
                 以下の文法項目に関する**4択穴埋め問題**を作成してください。
                 文法項目: {grammar_topic_str}
@@ -273,7 +273,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 問題文の空所は `( ______ )` のように、下線を使って明確に記述すること。
                 選択肢は (A) (B) (C) (D) の形式で記述すること。
                 """
-            elif problem_type == "🇯🇵 和訳問題 (Eng → Jap)":
+            elif problem_type == "和訳問題":
                 instruction = f"""
                 以下の文法項目を使った**英語の短文**を提示し、日本語訳させる問題を作成してください。
                 文法項目: {grammar_topic_str}
@@ -285,7 +285,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 必ず "1.", "2.", "3." と番号を振って記述すること。
                 [解答]の側に、対応する日本語の全訳を記述すること。
                 """
-            elif problem_type == "🇺🇸 英訳問題 (Jap → Eng)":
+            elif problem_type == "英訳問題":
                 instruction = f"""
                 以下の文法項目を使った文を作るための**日本語の短文**を提示し、英語訳させる問題を作成してください。
                 文法項目: {grammar_topic_str}
@@ -297,7 +297,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 必ず "1.", "2.", "3." と番号を振って記述すること。
                 [解答]の側に、対応する英語の正解文を記述すること。
                 """
-            elif problem_type == "✏️ 空欄補充問題 (Fill-in-the-blank)":
+            elif problem_type == "✏️ 空欄補充問題":
                 instruction = f"""
                 以下の文法項目を使った**空所補充問題**を作成してください。
                 文法項目: {grammar_topic_str}
