@@ -193,8 +193,23 @@ with st.sidebar:
     ])
     
     reading_text_type = "物語文 (Story)"
+    reading_theme = "おまかせ (Random)"
     if "長文読解" in problem_type:
         reading_text_type = st.radio("文章タイプ", ["物語文 (Story)", "会話文 (Conversation)"])
+        reading_theme = st.selectbox("テーマ・ジャンル", [
+            "おまかせ (Random)",
+            "学校生活 (School Life)",
+            "日常生活・家族 (Daily Life)",
+            "旅行・冒険 (Travel & Adventure)",
+            "友情・人間関係 (Friendship)",
+            "買い物・食事 (Shopping & Dining)",
+            "趣味・スポーツ (Hobbies & Sports)",
+            "動物・自然 (Animals & Nature)",
+            "歴史・文化 (History & Culture)",
+            "サイエンス・技術 (Science & Tech)",
+            "感動的な話 (Heartwarming)",
+            "ミステリー・謎解き (Mystery)"
+        ])
     
     level = st.selectbox("学年レベル", ["中学1年生", "中学2年生", "中学3年生"])
     
@@ -360,10 +375,17 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 text_type_en = "Story" if "物語" in reading_text_type else "Conversation/Dialog"
                 text_type_jp = "ストーリー" if "物語" in reading_text_type else "会話文"
 
+                # テーマの指示
+                if "おまかせ" in reading_theme:
+                    theme_instruction = "テーマ: 生徒が飽きないようなユニークで興味深いテーマをランダムに選定してください（ありきたりな内容を避ける）。"
+                else:
+                    theme_instruction = f"テーマ: 「{reading_theme}」に関連する内容で作成してください。"
+
                 instruction = f"""
                 以下の構成で長文読解テストを作成してください。
                 
                 1. **本文(Passage)**: 文法「{grammar_topic_str}」を多用した**英語の{text_type_jp}({text_type_en})**を作成する。
+                   - {theme_instruction}
                    - 【絶対ルール】本文は必ず**英語(English)**で書くこと。日本語で書いてはいけません。
                    - 単語レベル: {vocab_limit_instruction}
                    - 文法レベル: {grammar_limit_instruction}
@@ -457,8 +479,49 @@ if st.session_state.current_data is not None:
     pdf_q = create_pdf(edited_q_text)
     pdf_a = create_pdf(edited_a_text)
     
+    # BytesIOからバイトデータを取得（再利用のため）
+    pdf_q_bytes = pdf_q.getvalue()
+    pdf_a_bytes = pdf_a.getvalue()
+    
     col1, col2 = st.columns(2)
     with col1:
-        st.download_button("⬇️ 問題PDF", pdf_q, file_name="question.pdf", mime="application/pdf")
+        st.download_button("⬇️ 問題PDF (ブラウザ保存)", pdf_q_bytes, file_name="question.pdf", mime="application/pdf")
     with col2:
-        st.download_button("⬇️ 解答PDF", pdf_a, file_name="answer.pdf", mime="application/pdf")
+        st.download_button("⬇️ 解答PDF (ブラウザ保存)", pdf_a_bytes, file_name="answer.pdf", mime="application/pdf")
+
+    st.divider()
+    
+    # --- ローカル保存機能 ---
+    st.subheader("💾 PCのフォルダに別名保存")
+    with st.expander("保存設定を開く", expanded=True):
+        # デフォルト保存先（デスクトップに 'Created_Problems' フォルダを作るなど）
+        default_path = os.path.join(os.path.expanduser("~"), "Desktop", "英語問題作成_保存用")
+        save_path = st.text_input("保存先フォルダのパス", value=default_path)
+        
+        # ファイル名の生成
+        now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        sanitized_topic = data['topic'][:10].replace("、", "_").replace(" ", "")
+        default_filename_base = f"{now_str}_{sanitized_topic}"
+        
+        filename_base = st.text_input("ファイル名（拡張子不要）", value=default_filename_base)
+        
+        if st.button("指定したフォルダに保存する"):
+            try:
+                # フォルダがなければ作成
+                if not os.path.exists(save_path):
+                    os.makedirs(save_path)
+                    st.info(f"フォルダを作成しました: {save_path}")
+                
+                # パスの構築
+                q_file_path = os.path.join(save_path, f"{filename_base}_問題.pdf")
+                a_file_path = os.path.join(save_path, f"{filename_base}_解答.pdf")
+                
+                # 保存実行
+                with open(q_file_path, "wb") as f:
+                    f.write(pdf_q_bytes)
+                with open(a_file_path, "wb") as f:
+                    f.write(pdf_a_bytes)
+                    
+                st.success(f"✅ 保存完了！\n\n- {q_file_path}\n- {a_file_path}")
+            except Exception as e:
+                st.error(f"保存エラー: {e}")
