@@ -296,7 +296,14 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 指示: {mix_instruction}
                 単語制限: {vocab_limit_instruction}
                 
-                【重要：空欄の形式】
+                【重要：形式】
+                各設問について、まず英語の問題文を提示し、その**改行後の次の行**に必ず日本語訳を記述すること。
+                
+                例:
+                1. I ( ______ ) tennis every day.
+                (私は毎日テニスをします。)
+                (A) play (B) plays (C) playing (D) played
+                
                 問題文の空所は `( ______ )` のように、下線を使って明確に記述すること。
                 選択肢は (A) (B) (C) (D) の形式で記述すること。
 
