@@ -71,32 +71,59 @@ st.sidebar.divider()
 def create_pdf(problem_text):
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=A4)
+    # フォント設定
+    font_name = "Helvetica"
     font_path = "ipaexg.ttf" 
     if os.path.exists(font_path):
         try:
             pdfmetrics.registerFont(TTFont('IPAexGothic', font_path))
-            p.setFont('IPAexGothic', 11)
-        except:
-            p.setFont("Helvetica", 11)
-    else:
-        p.setFont("Helvetica", 11)
-    
-    y = 800 
-    line_height = 15 
-    
-    for line in problem_text.split('\n'):
-        if y < 50:
-            p.showPage()
-            if os.path.exists(font_path):
-                p.setFont('IPAexGothic', 11)
-            else:
-                p.setFont("Helvetica", 11)
-            y = 800
-        try:
-            p.drawString(50, y, line)
+            font_name = 'IPAexGothic'
         except:
             pass
-        y -= line_height
+    
+    p.setFont(font_name, 11)
+    
+    # ページ設定
+    width, height = A4
+    x_margin = 50
+    y_margin = 50
+    y = 800
+    line_height = 15
+    max_width = width - (x_margin * 2)
+
+    for line in problem_text.split('\n'):
+        # 空行の処理
+        if not line:
+            y -= line_height
+            if y < y_margin:
+                p.showPage()
+                p.setFont(font_name, 11)
+                y = 800
+            continue
+        
+        # 文字単位での折り返し処理
+        current_line = ""
+        for char in line:
+            if p.stringWidth(current_line + char, font_name, 11) <= max_width:
+                current_line += char
+            else:
+                p.drawString(x_margin, y, current_line)
+                y -= line_height
+                if y < y_margin:
+                    p.showPage()
+                    p.setFont(font_name, 11)
+                    y = 800
+                current_line = char
+        
+        # 残りの文字を描画
+        if current_line:
+            p.drawString(x_margin, y, current_line)
+            y -= line_height
+            if y < y_margin:
+                p.showPage()
+                p.setFont(font_name, 11)
+                y = 800
+                
     p.save()
     buffer.seek(0)
     return buffer
