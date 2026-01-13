@@ -1,6 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 import hmac
+import pypdf
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
@@ -145,6 +146,11 @@ with st.sidebar:
     
     st.divider()
 
+    st.divider()
+
+    # --- 参照資料 (PDF) 検出ロジックは文法選択後に移動 ---
+
+
     # --- 文法項目の定義 ---
     grammar_dict = {
         "中学1年生": [
@@ -182,6 +188,46 @@ with st.sidebar:
     with st.expander("中学3年生 (Grade 3)"):
         g3_selected = st.multiselect("中3項目", grammar_dict["中学3年生"])
         selected_grammars.extend(g3_selected)
+
+        selected_grammars.extend(g3_selected)
+
+    st.divider()
+
+    # --- 参照資料 (PDF) の動的マッチング ---
+    # 文法項目とPDFファイル名のマッピング定義
+    pdf_mapping = {
+        "be動詞": "1be動詞.pdf",
+        "一般動詞（規則）": "2一般動詞.pdf",
+        "疑問詞": "3疑問詞.pdf",
+        "命令文": "4命令文.pdf",
+        "代名詞": "5代名詞.pdf",
+        "三人称単数": "6三人称単数現在.pdf",
+        "現在進行形": "7現在進行形.pdf",
+        "助動詞can": "8助動詞can.pdf",
+        "一般動詞の過去（規則）": "9一般動詞の過去形.pdf",
+        "一般動詞の過去（不規則）": "10一般動詞の過去系不規則.pdf"
+    }
+
+    found_pdfs = []
+    
+    # 選択された文法からPDFを探す
+    for grammar in selected_grammars:
+        if grammar in pdf_mapping:
+            pdf_name = pdf_mapping[grammar]
+            if os.path.exists(pdf_name) and pdf_name not in found_pdfs:
+                found_pdfs.append(pdf_name)
+
+    use_ref_pdf = False
+    if found_pdfs:
+        st.markdown("##### 参照資料 (Reference Material)")
+        st.success(f"📄 関連資料を検知しました: {len(found_pdfs)}件")
+        for pdf in found_pdfs:
+            st.caption(f"・{pdf}")
+        
+        use_ref_pdf = st.checkbox("これらの資料の内容に基づいて作成する", value=True)
+    else:
+        # 特別な資料が見つからない場合
+        pass
 
     st.divider()
     problem_type = st.radio("問題形式を選択", [
@@ -416,6 +462,36 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 
                 指示: {mix_instruction}
                 """
+
+
+            # ★ 資料の読み込みと指示への追加 (複数ファイル対応)
+            if use_ref_pdf and found_pdfs:
+                combined_ref_text = ""
+                for pdf_file in found_pdfs:
+                    if os.path.exists(pdf_file):
+                        try:
+                            reader = pypdf.PdfReader(pdf_file)
+                            file_text = ""
+                            for page in reader.pages:
+                                text = page.extract_text()
+                                if text:
+                                    file_text += text + "\n"
+                            
+                            if file_text:
+                                combined_ref_text += f"\n--- 【資料: {pdf_file}】 ---\n{file_text}\n"
+                        except Exception as e:
+                            st.error(f"資料読み込みエラー ({pdf_file}): {e}")
+
+                if combined_ref_text:
+                    instruction += f"""
+                    
+                    【重要：参照資料 (Reference Material)】
+                    以下の検知された資料の内容（解説・例文・ルール）を厳密に守って問題を作成してください。
+                    複数の資料がある場合は、それぞれのターゲット文法に対応する部分を参照してください。
+                    
+                    {combined_ref_text}
+                    --- 資料内容ここまで ---
+                    """
 
             prompt = f"""
             あなたは日本の中学校英語教師です。以下の条件でテストを作成してください。
