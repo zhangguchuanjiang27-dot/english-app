@@ -574,58 +574,47 @@ if st.session_state.current_data is not None:
     pdf_q_bytes = pdf_q.getvalue()
     pdf_a_bytes = pdf_a.getvalue()
     
+    st.divider()
+    
+    # --- ファイル名設定 ---
+    st.markdown("##### 📁 ファイル名設定")
+    col_name, _ = st.columns([2, 1])
+    with col_name:
+        # ファイル名の生成
+        now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        sanitized_topic = data['topic'][:10].replace("、", "_").replace(" ", "")
+        default_filename_base = f"{now_str}_{sanitized_topic}"
+        filename_base = st.text_input("保存時のファイル名 (拡張子不要)", value=default_filename_base, key="filename_input")
+
     col1, col2 = st.columns(2)
     with col1:
-        st.download_button("⬇️ 問題PDF (ブラウザ保存)", pdf_q_bytes, file_name="question.pdf", mime="application/pdf")
+        st.download_button("⬇️ 問題PDF (ブラウザ保存)", pdf_q_bytes, file_name=f"{filename_base}_問題.pdf", mime="application/pdf")
     with col2:
-        st.download_button("⬇️ 解答PDF (ブラウザ保存)", pdf_a_bytes, file_name="answer.pdf", mime="application/pdf")
+        st.download_button("⬇️ 解答PDF (ブラウザ保存)", pdf_a_bytes, file_name=f"{filename_base}_解答.pdf", mime="application/pdf")
 
     st.divider()
     
-    # --- ローカル保存機能 ---
+    # --- ローカル保存機能 (サーバー/ローカル環境用) ---
     st.subheader("💾 PCのフォルダに保存")
+    st.caption("※Streamlit Cloudなどのクラウド環境では、この機能でPCに直接保存することはできません。上の「ダウンロード」ボタンを使用してください。")
     
     # セッションステートで保存先フォルダを管理
     if "save_folder" not in st.session_state:
-        desktop_path = os.path.expanduser("~/Desktop")
-        st.session_state.save_folder = desktop_path if os.path.exists(desktop_path) else os.getcwd()
-
-    # ファイル名の生成
-    now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    sanitized_topic = data['topic'][:10].replace("、", "_").replace(" ", "")
-    default_filename_base = f"{now_str}_{sanitized_topic}"
+        # デスクトップパスの取得を試みるが、環境によっては存在しないため例外処理
+        try:
+            desktop_path = os.path.expanduser("~/Desktop")
+            st.session_state.save_folder = desktop_path if os.path.exists(desktop_path) else os.getcwd()
+        except:
+            st.session_state.save_folder = os.getcwd()
     
-    filename_base = st.text_input("ファイル名 (拡張子不要)", value=default_filename_base)
-
-    col_btn, col_input = st.columns([1, 4])
-    
-    with col_btn:
-        if st.button("📁 フォルダ選択"):
-            import tkinter as tk
-            from tkinter import filedialog
-            
-            # 隠しウィンドウを作成してダイアログを表示
-            root = tk.Tk()
-            root.withdraw()
-            root.wm_attributes('-topmost', 1) # 最前面に表示
-            
-            selected_path = filedialog.askdirectory(initialdir=st.session_state.save_folder)
-            
-            root.destroy()
-            
-            if selected_path:
-                st.session_state.save_folder = selected_path
-                st.session_state.folder_input = selected_path
-                st.rerun()
-
-    with col_input:
-        save_folder = st.text_input("保存先:", value=st.session_state.save_folder, key="folder_input")
-        # 手入力された場合もステートに反映（次回のために）
-        st.session_state.save_folder = save_folder
+    # フォルダ選択ボタンは環境依存エラー(Tkinter)の原因となるため削除し、手入力のみに変更
+    save_folder = st.text_input("保存先フォルダパス (ローカル実行時のみ有効):", value=st.session_state.save_folder, key="folder_input")
+    st.session_state.save_folder = save_folder
 
     if st.button("💾 指定フォルダに保存", type="primary"):
         if not os.path.isdir(save_folder):
             st.error(f"エラー: 指定されたフォルダ '{save_folder}' が見つかりません。パスを確認してください。")
+            st.info("※クラウド上で実行している場合、あなたのPCのフォルダは見えません。上の「ダウンロード」ボタンを利用してください。")
         else:
             try:
                 q_file_path = os.path.join(save_folder, f"{filename_base}_問題.pdf")
