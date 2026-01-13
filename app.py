@@ -148,7 +148,7 @@ with st.sidebar:
     # --- 文法項目の定義 ---
     grammar_dict = {
         "中学1年生": [
-            "be動詞", "一般動詞（基礎）", "疑問詞", "命令文", "代名詞",
+            "be動詞", "一般動詞（規則）", "疑問詞", "命令文", "代名詞",
             "三人称単数", "現在進行形", "助動詞can",
             "一般動詞の過去（規則）", "一般動詞の過去（不規則）",
             "be動詞の過去", "過去進行形"
@@ -301,6 +301,21 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             # be動詞: 主語のバリエーション指示
             if "be動詞" in selected_grammars or "be動詞の過去" in selected_grammars:
                 mix_instruction += "\n(重要: be動詞の問題では、主語を I, You, He, She, They などの代名詞だけでなく、『This/That/These/Those』、『There is/are構文』、『人の名前 (Ken, My father等)』など多様な主語をバランスよく使ってください。)"
+
+            # 規則・不規則動詞の厳格な分離
+            if "一般動詞の過去（規則）" in selected_grammars and "一般動詞の過去（不規則）" not in selected_grammars:
+                mix_instruction += """
+                \n(重要・絶対遵守: 今回のテスト範囲は「一般動詞の過去（規則動詞）」です。
+                - 過去形にする動詞は、edをつけるだけの『規則動詞 (opened, played, visited, studied, wantedなど)』のみを絶対に使用してください。
+                - went, had, saw, came, made, bought などの不規則動詞は【使用禁止】です。問題文や選択肢に不規則動詞の過去形を含めないでください。)
+                """
+            
+            if "一般動詞の過去（不規則）" in selected_grammars and "一般動詞の過去（規則）" not in selected_grammars:
+                mix_instruction += """
+                \n(重要: 今回のテスト範囲は「一般動詞の過去（不規則動詞）」です。
+                - went, had, saw, bought, made, came, ate などの『不規則変化動詞』を中心に出題してください。
+                - 規則動詞はなるべく避け、不規則動詞の定着を確認する問題にしてください。)
+                """
            
             # 形式ごとの指示
             # 形式ごとの指示
