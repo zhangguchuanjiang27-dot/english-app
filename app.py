@@ -584,23 +584,46 @@ if st.session_state.current_data is not None:
     
     # --- ローカル保存機能 ---
     st.subheader("💾 PCのフォルダに保存")
-    st.caption("ボタンを押すと、フォルダ選択画面が開きます。")
+    
+    # セッションステートで保存先フォルダを管理
+    if "save_folder" not in st.session_state:
+        desktop_path = os.path.expanduser("~/Desktop")
+        st.session_state.save_folder = desktop_path if os.path.exists(desktop_path) else os.getcwd()
 
     # ファイル名の生成
     now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     sanitized_topic = data['topic'][:10].replace("、", "_").replace(" ", "")
     default_filename_base = f"{now_str}_{sanitized_topic}"
     
-    col1, col2 = st.columns(2)
-    with col1:
-        filename_base = st.text_input("ファイル名 (拡張子不要)", value=default_filename_base)
-    with col2:
-        # デフォルトはデスクトップ、なければカレントディレクトリ
-        desktop_path = os.path.expanduser("~/Desktop")
-        default_dir = desktop_path if os.path.exists(desktop_path) else os.getcwd()
-        save_folder = st.text_input("保存先フォルダを指定", value=default_dir)
+    filename_base = st.text_input("ファイル名 (拡張子不要)", value=default_filename_base)
 
-    if st.button("💾 指定フォルダに保存"):
+    col_btn, col_input = st.columns([1, 4])
+    
+    with col_btn:
+        if st.button("📁 フォルダ選択"):
+            import tkinter as tk
+            from tkinter import filedialog
+            
+            # 隠しウィンドウを作成してダイアログを表示
+            root = tk.Tk()
+            root.withdraw()
+            root.wm_attributes('-topmost', 1) # 最前面に表示
+            
+            selected_path = filedialog.askdirectory(initialdir=st.session_state.save_folder)
+            
+            root.destroy()
+            
+            if selected_path:
+                st.session_state.save_folder = selected_path
+                st.session_state.folder_input = selected_path
+                st.rerun()
+
+    with col_input:
+        save_folder = st.text_input("保存先:", value=st.session_state.save_folder, key="folder_input")
+        # 手入力された場合もステートに反映（次回のために）
+        st.session_state.save_folder = save_folder
+
+    if st.button("💾 指定フォルダに保存", type="primary"):
         if not os.path.isdir(save_folder):
             st.error(f"エラー: 指定されたフォルダ '{save_folder}' が見つかりません。パスを確認してください。")
         else:
