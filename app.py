@@ -366,16 +366,34 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             # 形式ごとの指示
             # 形式ごとの指示
             if problem_type == "🔠 4択問題":
+                # 不定詞の特別指示
+                infinitive_instruction = ""
+                if "不定詞 (名詞・副詞・形容詞)" in selected_grammars:
+                    infinitive_instruction = """
+                    【不定詞の特別出題ルール】
+                    - 問題の一部（例えば全問題数の3割程度）を、「次の文の下線部と同じ用法の不定詞を含む文を選びなさい」という用法識別問題にしてください。
+                    - 「空所補充問題」と「用法識別問題」を混ぜて作成すること。
+                    - 用法識別問題の例:
+                      Q. 次の文の下線部と同じ用法の不定詞を含む文を選びなさい。
+                      To play tennis is fun.
+                      (A) I like to swim.
+                      (B) I went to the park to play.
+                      (C) To read books is important.
+                      (D) I have many books to read.
+                    - 解説には、それぞれの文が「名詞的用法」「形容詞的用法」「副詞的用法」のどれに当たるかを明記すること。
+                    """
+
                 instruction = f"""
-                以下の文法項目に関する**4択穴埋め問題**を作成してください。
+                以下の文法項目に関する**4択問題**を作成してください。
                 文法項目: {grammar_topic_str}
                 指示: {mix_instruction}
                 単語制限: {vocab_limit_instruction}
+                {infinitive_instruction}
                 
                 【重要：形式】
                 各設問について、まず英語の問題文を提示し、その**改行後の次の行**に必ず日本語訳を記述すること。
                 
-                例:
+                例（空所補充）:
                 1. I ( ______ ) tennis every day.
                 (私は毎日テニスをします。)
                 (A) play (B) plays (C) playing (D) played
