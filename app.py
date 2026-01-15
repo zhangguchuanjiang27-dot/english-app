@@ -443,14 +443,27 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 else:
                     theme_instruction = f"テーマ: 「{reading_theme}」に関連する内容で作成してください。"
 
+                # 長文読解のレベル調整（特に中1向け）
+                grade_specific_instruction = ""
+                if level == "中学1年生":
+                    grade_specific_instruction = """
+                    【中1レベルの絶対的制約】
+                    - 1文の単語数は5〜10単語程度の短い文にすること。
+                    - 関係代名詞、接続詞(that, if, becauseなど)、不定詞、動名詞は絶対に使用禁止（まだ習っていないため）。
+                    - 文構造は「主語 + 動詞 + ...」の単純な形を維持すること。
+                    - ストーリーは幼稚になっても構わないので、とにかく平易な英語で構成すること。
+                    """
+
                 instruction = f"""
                 以下の構成で長文読解テストを作成してください。
                 
-                1. **本文(Passage)**: 文法「{grammar_topic_str}」を多用した**英語の{text_type_jp}({text_type_en})**を作成する。
+                1. **本文(Passage)**: 文法「{grammar_topic_str}」を可能な限り多用した**英語の{text_type_jp}({text_type_en})**を作成する。
                    - {theme_instruction}
                    - 【絶対ルール】本文は必ず**英語(English)**で書くこと。日本語で書いてはいけません。
                    - 単語レベル: {vocab_limit_instruction}
                    - 文法レベル: {grammar_limit_instruction}
+                   - 文体ガイド: {grade_specific_instruction}
+                   - **重要**: ターゲット文法「{grammar_topic_str}」を、本文全体の**少なくとも50%以上の文**で使用し、集中的に練習できるようにすること。無理やりにでも詰め込むこと。
                 
                 2. **設問(Questions)**: {text_type_jp}の内容に関する**4択問題(A)(B)(C)(D)をちょうど4問**作成する。
                    - 質問には必ず "Q.1", "Q.2", "Q.3", "Q.4" と番号を振ること。
@@ -486,8 +499,9 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 if combined_ref_text:
                     instruction += f"""
                     
-                    【重要：参照資料 (Reference Material)】
-                    以下の検知された資料の内容（解説・例文・ルール）を厳密に守って問題を作成してください。
+                    【重要：参照資料 (Reference Material) の絶対遵守】
+                    以下の検知された資料の内容（解説・例文・ルール）を**最優先で**守って問題を作成してください。
+                    AIの持つ一般的な知識よりも、この資料に書かれているルールや例文のスタイルを優先してください。
                     複数の資料がある場合は、それぞれのターゲット文法に対応する部分を参照してください。
                     
                     {combined_ref_text}
