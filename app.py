@@ -130,7 +130,7 @@ def create_pdf(problem_text):
     return buffer
 
 # --- 画面レイアウト ---
-st.title("英語問題メーカー")
+st.title("英語問題生成ソフト")
 
 
 with st.sidebar:
@@ -494,6 +494,9 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                     --- 資料内容ここまで ---
                     """
 
+            # タイトル用に絵文字を除去
+            problem_type_clean = problem_type.replace("🔠 ", "").replace("✏️ ", "").replace("📖 ", "")
+
             prompt = f"""
             あなたは日本の中学校英語教師です。以下の条件でテストを作成してください。
             条件: レベル[{level}] 問題数[{q_num}]
@@ -503,7 +506,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
             【出力フォーマット】
             必ず問題と解答の間に「{separator_mark}」を入れてください。
             
-            タイトル: {grammar_topic_str} 確認テスト ({problem_type})
+            タイトル: {grammar_topic_str} 確認テスト ({problem_type_clean})
             
             (問題文)
             
