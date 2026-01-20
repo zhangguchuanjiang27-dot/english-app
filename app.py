@@ -234,6 +234,7 @@ with st.sidebar:
     problem_type = st.radio("問題形式を選択", [
         "🔠 4択問題",
         "✏️ 空欄補充問題",
+        "🔀 並び替え問題",
         "和訳問題",
         "英訳問題",
         "📖 長文読解 (4択問題)"
@@ -365,7 +366,34 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                 """
            
             # 形式ごとの指示
-            if problem_type == "🔠 4択問題":
+            if problem_type == "🔀 並び替え問題":
+                instruction = f"""
+                以下の文法項目を使った**整序問題（並び替え問題）**を作成してください。
+                文法項目: {grammar_topic_str}
+                指示: {mix_instruction}
+                単語制限: {vocab_limit_instruction}
+
+                【重要：問題作成のルール】
+                1. ターゲット文法の理解を問う自然な英文を作成する。
+                2. その英文の単語をランダムに並び替え、**スラッシュ(/)で区切って**提示する。
+                3. 文頭に来る単語も**小文字**にしておくこと（ただし固有名詞やIは除く）。
+
+                【重要：出力形式】
+                [問題用紙]の側には、以下の形式で記述すること。
+                各問題について、まず「並び替え前の単語列」を提示し、その**改行後の次の行**に必ず日本語訳を記述すること。
+                
+                例:
+                1. math / I / studying / am
+                (私は数学を勉強しています。)
+                
+                2. you / to / do / play / want / soccer / ?
+                (あなたはサッカーをしたいですか？)
+
+                注: 並び替え前の単語の順序は**必ず**ランダムにシャッフルすること。絶対に正解の順序のまま出さないこと。
+
+                [解答]の側に、正しい語順の完全な英文と、文法的なポイントの「解説」を必ず記述すること。
+                """
+            elif problem_type == "🔠 4択問題":
                 instruction = f"""
                 以下の文法項目に関する**4択問題**を作成してください。
                 文法項目: {grammar_topic_str}
@@ -512,7 +540,7 @@ if st.button("✨ 問題を作成する", use_container_width=True):
                     """
 
             # タイトル用に絵文字を除去
-            problem_type_clean = problem_type.replace("🔠 ", "").replace("✏️ ", "").replace("📖 ", "")
+            problem_type_clean = problem_type.replace("🔠 ", "").replace("✏️ ", "").replace("📖 ", "").replace("🔀 ", "")
 
             prompt = f"""
             あなたは日本の中学校英語教師です。以下の条件でテストを作成してください。
